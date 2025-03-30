@@ -1,0 +1,4 @@
+.env
+google_sheets_credentials.json
+pinterest_token.json
+*.pyc
