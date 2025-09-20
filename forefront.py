@@ -221,31 +221,75 @@ def fetch_collections():
 
     return collections
 
+def get_seasonal_context_germany():
+    """Get current seasonal context for Germany with 6-week lookahead intelligence"""
+    now = datetime.datetime.now()
+    month = now.month
+    day = now.day
+    
+    # Define seasonal transitions with 6-week lookahead
+    # Winter: Dec 1 - Feb 28/29
+    # Spring: Mar 1 - May 31  
+    # Summer: Jun 1 - Aug 31
+    # Autumn: Sep 1 - Nov 30
+    
+    # Check if we're in the last 6 weeks of a season (42 days)
+    if month == 2 and day >= 15:  # Mid-February - transition to Spring
+        return "transition_to_spring", "Frühling"
+    elif month == 5 and day >= 15:  # Mid-May - transition to Summer  
+        return "transition_to_summer", "Sommer"
+    elif month == 8 and day >= 15:  # Mid-August - transition to Autumn
+        return "transition_to_autumn", "Herbst"
+    elif month == 11 and day >= 15:  # Mid-November - transition to Winter
+        return "transition_to_winter", "Winter"
+    
+    # Standard seasonal assignment
+    if month in [12, 1, 2]:
+        return "winter", "Winter"
+    elif month in [3, 4, 5]:
+        return "spring", "Frühling"
+    elif month in [6, 7, 8]:
+        return "summer", "Sommer"
+    else:
+        return "autumn", "Herbst"
+
 def remove_old_years_and_fix_season(text, season_override=None):
-    """Ensures no old years (2024, etc) appear in output, and normalizes season/year."""
+    """Ensures no old years (2024, etc) appear in output, and normalizes season/year with German seasonal intelligence."""
     # 1. Replace all year-like patterns with current year if they're older
     current_year = datetime.datetime.now().year
     # Only match years from 2021 to current_year-1 to avoid mistakes
     text = re.sub(r"(20[1-9][0-9])", lambda m: str(current_year) if int(m.group(1)) < current_year else m.group(1), text)
 
-    # 2. Optionally, normalize season if desired
-    # For example: Replace "Herbst 2024" or "Spring 2024" with correct season/year
-    # Determine current season
+    # 2. Apply German seasonal intelligence with 6-week lookahead
     if season_override:
         current_season = season_override
+        seasonal_context = "override"
     else:
-        month = datetime.datetime.now().month
-        if month in [12, 1, 2]:
-            current_season = "Winter"
-        elif month in [3, 4, 5]:
-            current_season = "Frühling"
-        elif month in [6, 7, 8]:
-            current_season = "Sommer"
-        else:
-            current_season = "Herbst"
-    # Replace all "[Season] 2024" or similar with "[CurrentSeason] [CurrentYear]"
+        seasonal_context, current_season = get_seasonal_context_germany()
+    
+    # 3. Replace seasonal references with current context
     text = re.sub(r"\b(Winter|Frühling|Sommer|Herbst|Spring|Summer|Autumn|Fall) 20[1-9][0-9]\b",
                   f"{current_season} {current_year}", text)
+    
+    # 4. Add seasonal intelligence to content
+    if seasonal_context == "transition_to_spring":
+        text = text.replace("Sommer", "Frühling").replace("Summer", "Spring")
+        # Avoid summer content when transitioning to spring
+        if any(word in text.lower() for word in ["sommer", "summer", "badeanzug", "bikini", "sonnencreme"]):
+            text = text.replace("Sommer", "Frühling").replace("Summer", "Spring")
+    elif seasonal_context == "transition_to_summer":
+        # Avoid winter content when transitioning to summer
+        if any(word in text.lower() for word in ["winter", "warm", "gefuttert", "mantel", "jacke"]):
+            text = text.replace("Winter", "Sommer").replace("warm", "leicht")
+    elif seasonal_context == "transition_to_autumn":
+        # Avoid summer content when transitioning to autumn
+        if any(word in text.lower() for word in ["sommer", "summer", "badeanzug", "bikini"]):
+            text = text.replace("Sommer", "Herbst").replace("Summer", "Autumn")
+    elif seasonal_context == "transition_to_winter":
+        # Avoid spring content when transitioning to winter
+        if any(word in text.lower() for word in ["frühling", "spring", "blüte", "blume"]):
+            text = text.replace("Frühling", "Winter").replace("Spring", "Winter")
+    
     return text
 
 # ✅ Fetch Shopify Products (Simplified Error Handling)
@@ -490,6 +534,9 @@ def generate_single_pin_title(data):
     
     print(f"   DEBUG: Product name: '{clean_product_name}' -> Key terms: '{key_terms}'")
     
+    # Get seasonal context for Germany
+    seasonal_context, current_season = get_seasonal_context_germany()
+    
     prompt = (
         "Du bist ein erfahrener, deutschsprachiger Pinterest-Copywriter für virale E-Commerce-Produkte.\n"
         "Schreibe einen einzigartigen, extrem klickstarken Pin-Titel für Pinterest, max. 60 Zeichen (keine Zeichen-Anzahl im Text!).\n"
@@ -505,7 +552,12 @@ def generate_single_pin_title(data):
         f"Preis: {price} €\n"
         f"Kategorie: {category}\n"
         f"Tags: {tags_str}\n"
-        f"Produktbeschreibung: {description_text}\n\n"
+        f"Produktbeschreibung: {description_text}\n"
+        f"AKTUELLE SAISON (Deutschland): {current_season} {datetime.datetime.now().year}\n"
+        f"SAISONALER KONTEXT: {seasonal_context}\n"
+        "WICHTIG: Berücksichtige die aktuelle Saison in Deutschland! "
+        "Vermeide saisonal unpassende Begriffe (z.B. keine Sommer-Begriffe im Spätsommer/Herbst, "
+        "keine Winter-Begriffe im Spätwinter/Frühling).\n\n"
         "Gib nur den Pin-Titel zurück. Keine weiteren Erklärungen oder Begrenzungen."
     )
 
@@ -597,7 +649,10 @@ def generate_single_pin_description(data):
     
     print(f"   DEBUG: Description - Product name: '{clean_product_name}' -> Key terms: '{key_terms}'")
 
-    # Short & powerful DeepSeek prompt, explicit instructions for modern style
+    # Get seasonal context for Germany
+    seasonal_context, current_season = get_seasonal_context_germany()
+    
+    # Short & powerful DeepSeek prompt with seasonal intelligence
     prompt = (
         "Du bist ein erfahrener Pinterest-Texter und kennst alle Best Practices für Conversion und Klicks. "
         "Schreibe eine unwiderstehliche, trendige Pinterest-Pin-Beschreibung auf Deutsch für das untenstehende Produkt. "
@@ -617,6 +672,11 @@ def generate_single_pin_description(data):
         f"Kategorie: {category}\n"
         f"Tags: {tags_str}\n"
         f"Produktbeschreibung: {description_text}\n"
+        f"AKTUELLE SAISON (Deutschland): {current_season} {datetime.datetime.now().year}\n"
+        f"SAISONALER KONTEXT: {seasonal_context}\n"
+        "WICHTIG: Berücksichtige die aktuelle Saison in Deutschland! "
+        "Vermeide saisonal unpassende Begriffe (z.B. keine Sommer-Begriffe im Spätsommer/Herbst, "
+        "keine Winter-Begriffe im Spätwinter/Frühling). "
         "Achtung: Maximal 200 Zeichen! Entferne in deiner Antwort ausnahmslos alle Zeichenhinweise oder Meta-Kommentare."
     )
 
