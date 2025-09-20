@@ -1077,7 +1077,7 @@ def save_to_google_sheets_with_ai(image_data, ai_results):
             pin_title, pin_description, board_title = "No AI Result", "No AI Result", "No AI Result"
             
         pin_description = clean_pin_description(pin_description)
-        status, board_id = "POSTED", ""
+        status, board_id = "", ""  # Empty status until actually posted to Pinterest
         order = i + 1
         # Fallback for missing product id (should be always present at data[8])
         product_uid = str(data[8]) if len(data) > 8 else f"{data[1]}_{data[2].split('/')[-1]}"
