@@ -29,3 +29,5 @@ services:
         sync: false
       - key: SHEET_ID
         sync: false
+      - key: SECOND_SHEET_ID
+        sync: false

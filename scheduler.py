@@ -121,7 +121,8 @@ def main():
         'PINTEREST_APP_ID',
         'PINTEREST_APP_SECRET',
         'OPENAI_API_KEY',
-        'SHEET_ID'
+        'SHEET_ID',
+        'SECOND_SHEET_ID'  # For multi-product campaigns
     ]
     
     missing_vars = [var for var in required_vars if not os.getenv(var)]
