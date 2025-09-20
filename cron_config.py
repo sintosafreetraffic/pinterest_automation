@@ -17,9 +17,9 @@ PINTEREST_POSTING_CONFIG = {
 CAMPAIGN_CREATION_CONFIG = {
     "enabled": True,  # Whether to create campaigns
     "campaign_type": "WEB_CONVERSION",  # WEB_CONVERSION, CONSIDERATION, CATALOG_SALES
-    "campaign_mode": "single_product",  # single_product, multi_product
-    "products_per_campaign": 1,  # For multi_product mode
-    "daily_budget": 100,  # Daily budget in cents (100 = 1 euro)
+    "campaign_mode": "multi_product",  # single_product, multi_product
+    "products_per_campaign": 10,  # For multi_product mode (10 products per campaign)
+    "daily_budget": 1000,  # Daily budget in cents (1000 = 10 euro)
     "target_language": "de",  # en, de, fr, es, it, nl, pt
     "enable_second_sheet": False,  # Whether to use a second sheet
     "second_sheet_id": "",  # Second sheet ID if enabled
