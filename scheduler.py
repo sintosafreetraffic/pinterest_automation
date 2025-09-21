@@ -94,14 +94,17 @@ def run_automation_workflow():
         try:
             from forefront import run_step3_campaign_creation
             # Configure for multi-product campaigns: 10 products, 10 euro budget
+            second_sheet_id = os.getenv("SECOND_SHEET_ID", "")
+            enable_second_sheet = bool(second_sheet_id)
+            
             campaigns_success = run_step3_campaign_creation(
                 campaign_mode="multi_product",
                 products_per_campaign=10,
                 daily_budget=1000,  # 10 euro in cents
                 campaign_type="WEB_CONVERSION",
                 target_language="de",
-                enable_second_sheet=False,
-                second_sheet_id="",
+                enable_second_sheet=enable_second_sheet,
+                second_sheet_id=second_sheet_id,
                 campaign_start_date="next_tuesday",
                 custom_start_date=""
             )
