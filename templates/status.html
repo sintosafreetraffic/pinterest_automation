@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cortex Zero — System Status</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f6f8ff;--card:#ffffff;--ink:#0f172a;--muted:#64748b;--blue:#2563eb;--green:#16a34a;--red:#dc2626;
+      --ring:#dce6ff;--line:#e9eefb;--chip:#eef2ff;--shadow:0 8px 28px rgba(20,40,120,.08);
+      --mono:'JetBrains Mono',monospace;--sans:'Inter',system-ui,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(135deg,#eef3ff 0%,#fafcff 100%);color:var(--ink);font-family:var(--sans)}
+    a{text-decoration:none;color:inherit}
+    .navbar{position:sticky;top:0;background:rgba(255,255,255,.6);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);z-index:10}
+    .nav-inner{max-width:1100px;margin:0 auto;display:flex;gap:.8rem;align-items:center;padding:.8rem 1rem}
+    .nav-btn{padding:.5rem .9rem;border-radius:.7rem;border:0;cursor:pointer;font-weight:600;background:transparent;color:#1e3a8a}
+    .nav-btn.active,.nav-btn:hover{background:linear-gradient(90deg,#4f7fff 0%,#7aa6ff 100%);color:#fff}
+    .wrap{max-width:1100px;margin:2rem auto;padding:0 1rem}
+    .page{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:20px;padding:1.6rem}
+    .top{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+    .title{display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.6rem;letter-spacing:-.02em}
+    .led{width:14px;height:14px;border-radius:999px;background:var(--green);box-shadow:0 0 0 4px rgba(22,163,74,.12)}
+    .led.down{background:var(--red);box-shadow:0 0 0 4px rgba(220,38,38,.12)}
+    .chips{display:flex;gap:.5rem;flex-wrap:wrap}
+    .chip{background:var(--chip);border:1px solid var(--ring);padding:.35rem .6rem;border-radius:999px;font-size:.82rem;color:#334155}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:1.1rem 0}
+    .card{padding:1rem;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+    .kpi{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
+    .kpi-sub{color:var(--muted);font-size:.9rem;margin-top:.25rem}
+    .section{margin-top:1.6rem}
+    .section h2{margin:.2rem 0 .8rem;font-size:1.1rem}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:.6rem .7rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:.95rem}
+    .table th{background:#f7faff}
+    .mono{font-family:var(--mono);font-size:.92rem}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+    .btn{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--line);background:#fff;padding:.55rem .9rem;border-radius:10px;cursor:pointer;font-weight:700}
+    .btn.primary{background:linear-gradient(90deg,#4f7fff 0%,#7aa6ff 100%);color:#fff;border:0}
+    .btn.green{background:#e7f9ee;color:#065f46;border-color:#bfead0}
+    .btn.red{background:#fee2e2;color:#7f1d1d;border-color:#fecaca}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .pill{display:inline-block;background:#eef2ff;border:1px solid var(--ring);color:#334155;padding:.2rem .5rem;border-radius:999px;font-size:.78rem}
+    .well{background:#f6f9ff;border:1px solid var(--ring);border-radius:14px;padding:1rem}
+    .json{white-space:pre-wrap;word-wrap:anywhere;background:#0b1220;color:#e6edf3;padding:.8rem 1rem;border-radius:12px;font-family:var(--mono);font-size:.9rem}
+    .details{display:none;margin-top:.5rem}
+    .link{color:var(--blue);text-decoration:underline;cursor:pointer}
+    .hint{font-size:.9rem;color:var(--muted)}
+    .right{margin-left:auto}
+    .switch{display:inline-flex;align-items:center;gap:.5rem}
+    input[type="checkbox"]{transform:scale(1.1)}
+    @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:600px){.grid{grid-template-columns:1fr}.table th,.table td{font-size:.88rem}}
+    .toast{position:fixed;bottom:18px;right:18px;max-width:420px;padding:.8rem 1rem;border-radius:12px;background:#111827;color:#fff;box-shadow:var(--shadow);display:none;z-index:50}
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-btn">Connect</a>
+      <a href="/dashboard" class="nav-btn">Dashboard</a>
+      <a href="/status" class="nav-btn active">Status</a>
+      <span class="right hint">Session: <span class="mono">{{ request.state.request_id if request and request.state and request.state.request_id else '-' }}</span></span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="page">
+      <div class="top">
+        <div class="title">
+          <span class="led" id="live-led"></span>
+          System Status
+        </div>
+        <div class="chips">
+          <span class="chip">API: <b>{{ (api_health.status if api_health else 'unknown')|upper }}</b></span>
+          <span class="chip">Last webhook: <span class="mono">{{ last_webhook or '-' }}</span></span>
+          <span class="chip">Last event: <b>{{ last_event or '-' }}</b></span>
+          <span class="chip">CAPI send enabled: <b>{{ 'YES' if pin_send_enabled else 'NO' }}</b></span>
+        </div>
+      </div>
+
+      {% if test_status %}
+      <div class="well" style="margin-top:.6rem">
+        <b>Test result</b>
+        <div class="json" style="margin-top:.5rem">{{ test_status|safe }}</div>
+      </div>
+      {% endif %}
+
+      <!-- KPI GRID -->
+      <div class="grid">
+        <div class="card">
+          <div class="kpi">{{ (counters.stores if counters else 0) }}</div>
+          <div class="kpi-sub">Connected Stores</div>
+        </div>
+        <div class="card">
+          <div class="kpi">{{ (counters.pixels if counters else 0) }}</div>
+          <div class="kpi-sub">Active Pixels</div>
+        </div>
+        <div class="card">
+          <div class="kpi">{{ (counters.db_audits if counters else 0) }}</div>
+          <div class="kpi-sub">DB Audit Rows</div>
+        </div>
+        <div class="card">
+          <div class="kpi">{{ (counters.ram_errors if counters else 0) }}</div>
+          <div class="kpi-sub">Recent Errors</div>
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="section">
+        <h2>Quick Actions</h2>
+        <div class="well row">
+          {% set has_creds = credentials and credentials|length > 0 %}
+          <label>
+            Store:
+            <select id="qa-store" style="margin-left:.4rem">
+              {% if has_creds %}
+                {% for cred in credentials %}
+                  <option value="{{ cred.store_id }}" {{ 'selected' if cred.store_id == default_store_id else '' }}>
+                    {{ cred.shopify_store_url }}
+                  </option>
+                {% endfor %}
+              {% else %}
+                <option value="">No stores</option>
+              {% endif %}
+            </select>
+          </label>
+
+          <button class="btn primary" onclick="ensureDefaults()" {% if not has_creds %}disabled{% endif %}>
+            Ensure Default Webhooks
+          </button>
+          <button class="btn green" onclick="installScriptTag()" {% if not has_creds %}disabled{% endif %}>
+            Install Pixel ScriptTag
+          </button>
+          <button class="btn" onclick="copyText('{{ webhook_url }}')">Copy Webhook URL</button>
+
+          <span class="right switch">
+            <label><input type="checkbox" id="autorefresh"> Auto refresh</label>
+            <button class="btn" onclick="location.reload()">Refresh</button>
+          </span>
+        </div>
+        <div class="hint" style="margin-top:.4rem">
+          Actions require your <span class="mono">X-Admin-Token</span>. You’ll be prompted once per session.
+        </div>
+      </div>
+
+      <!-- CONNECTED STORES -->
+      <div class="section">
+        <h2>Connected Stores & Credentials</h2>
+        {% if credentials and credentials|length > 0 %}
+          <table class="table">
+            <tr>
+              <th>Shopify Store URL</th>
+              <th>API Key</th>
+              <th>Pixels</th>
+              <th>Actions</th>
+            </tr>
+            {% for cred in credentials %}
+            <tr>
+              <td class="mono">{{ cred.shopify_store_url }}</td>
+              <td class="mono">{{ cred.shopify_api_key }}</td>
+              <td>
+                {% if cred.pixels and cred.pixels|length > 0 %}
+                  <ul style="margin:.3rem 0;padding-left:1rem">
+                    {% for p in cred.pixels %}
+                      <li>
+                        <b>{{ p.type|capitalize }}</b> —
+                        <span class="mono">{{ p.pixel_id }}</span>
+                        <span class="pill" title="Send enabled?">
+                          send: {{ 'on' if (p.config and p.config.get('send_enabled')) else 'off' }}
+                        </span>
+                        <div class="hint mono" style="margin-top:.25rem">
+                          {{ p.config|tojson }}
+                        </div>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <span class="hint">No pixels</span>
+                {% endif %}
+              </td>
+              <td class="row">
+                <button class="btn" onclick="ensureDefaults('{{ cred.store_id }}')">Webhooks</button>
+                <button class="btn" onclick="installScriptTag('{{ cred.store_id }}')">ScriptTag</button>
+                <button class="btn" onclick="copyText('{{ cred.shopify_store_url }}')">Copy URL</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <p class="hint">No store credentials found.</p>
+        {% endif %}
+      </div>
+
+      <!-- TESTS -->
+      <div class="section">
+        <h2>Diagnostics</h2>
+        <div class="well row">
+          <!-- Shopify -->
+          <form action="/test_shopify" method="post" class="row" style="gap:.6rem">
+            {% if has_creds and credentials|length > 1 %}
+              <select name="shopify_store_url">
+                {% for cred in credentials %}
+                  <option value="{{ cred.shopify_store_url }}">{{ cred.shopify_store_url }}</option>
+                {% endfor %}
+              </select>
+            {% elif has_creds %}
+              <input type="hidden" name="shopify_store_url" value="{{ credentials[0].shopify_store_url }}">
+              <span class="pill">{{ credentials[0].shopify_store_url }}</span>
+            {% else %}
+              <select disabled><option>No stores</option></select>
+            {% endif %}
+            <button class="btn" type="submit" {% if not has_creds %}disabled{% endif %}>Test Shopify</button>
+          </form>
+
+          <!-- Pinterest -->
+          <form action="/test_pinterest" method="post" class="row" style="gap:.6rem">
+            {% if has_creds and credentials|length > 1 %}
+              <select name="store_id">
+                {% for cred in credentials %}
+                  <option value="{{ cred.store_id }}">{{ cred.shopify_store_url }}</option>
+                {% endfor %}
+              </select>
+            {% elif has_creds %}
+              <input type="hidden" name="store_id" value="{{ credentials[0].store_id }}">
+              <span class="pill">{{ credentials[0].shopify_store_url }}</span>
+            {% else %}
+              <select disabled><option>No stores</option></select>
+            {% endif %}
+            <button class="btn" type="submit" {% if not has_creds %}disabled{% endif %}>Build Pinterest Test Payload</button>
+          </form>
+
+          <!-- Google Sheets -->
+          <form action="/test_google_sheet" method="post" class="row" style="gap:.6rem">
+            <button class="btn" type="submit">Test Google Sheets</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- AUDIT LOG -->
+      {% set audit = audit_log if audit_log is defined else (events if events is defined else []) %}
+      <div class="section">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h2>Audit Log (last 20)</h2>
+          <div class="row">
+            <input id="filter-input" placeholder="Filter… (event/status/text)" style="padding:.45rem .6rem;border:1px solid var(--line);border-radius:8px"/>
+            <button class="btn" onclick="filterAudit()">Apply</button>
+            <button class="btn red" onclick="clearFilter()">Clear</button>
+          </div>
+        </div>
+
+        {% if audit and audit|length > 0 %}
+          <table class="table" id="audit-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Event</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for ev in audit %}
+              {% set stamp = ev.get('updated_at', ev.get('timestamp','')) %}
+              {% set name = ev.get('event_type', ev.get('log_id','-')) %}
+              {% set status = ev.get('status', 'ok' if ev.get('runtime_success') else 'error') %}
+              <tr class="audit-row">
+                <td class="mono">{{ stamp }}</td>
+                <td>{{ name }}</td>
+                <td>
+                  {% set ok = ev.get('runtime_success') or (status in ['ok','sent','queued','created','logged']) %}
+                  {% if ok %}
+                    <span class="pill" style="background:#e8f8ef;border-color:#c8eed6;color:#065f46;">OK</span>
+                  {% else %}
+                    <span class="pill" style="background:#ffecec;border-color:#ffd5d5;color:#7f1d1d;">Error</span>
+                  {% endif %}
+                  <span class="mono" style="margin-left:.4rem;color:#475569">{{ status }}</span>
+                </td>
+                <td>
+                  {% set details = ev.get('details') or ev.get('output_data') %}
+                  {% if details %}
+                    <span class="link" onclick="toggleDetails('d{{ loop.index }}')">Show</span>
+                    <div class="details" id="d{{ loop.index }}">
+                      <div class="json" data-json="{{ (details|tojson)|e }}"></div>
+                    </div>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="hint">No audit events yet.</p>
+        {% endif %}
+      </div>
+
+      <!-- ERRORS -->
+      {% if errors and errors|length > 0 %}
+      <div class="section">
+        <h2>Recent Errors</h2>
+        <div class="well">
+          {% for err in errors %}
+            <div style="margin-bottom:.7rem">
+              <div><b>{{ err.context }}</b> <span class="mono muted">— {{ err.timestamp }}</span></div>
+              <div class="json" style="margin-top:.3rem">{{ err.error }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="section" style="text-align:center;margin-top:2rem">
+        <a href="/dashboard" class="btn">← Dashboard</a>
+        <a href="/" class="btn">Connect</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // --- live LED health ping ---
+    async function ping(){
+      try{
+        const r = await fetch('/healthz',{cache:'no-store'});
+        const led = document.getElementById('live-led');
+        if(r.ok){ led.classList.remove('down'); } else { led.classList.add('down'); }
+      }catch(e){
+        document.getElementById('live-led').classList.add('down');
+      }
+    }
+    ping(); setInterval(ping, 8000);
+
+    // --- Admin Token (remember for session) ---
+    let ADMIN_TOKEN = sessionStorage.getItem('X_ADMIN_TOKEN') || null;
+    function getAdminToken(){
+      if(ADMIN_TOKEN) return ADMIN_TOKEN;
+      const t = prompt('Enter X-Admin-Token');
+      if(!t) return null;
+      ADMIN_TOKEN = t.trim();
+      sessionStorage.setItem('X_ADMIN_TOKEN', ADMIN_TOKEN);
+      return ADMIN_TOKEN;
+    }
+
+    function toast(msg, ok=true){
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.background = ok ? '#111827' : '#7f1d1d';
+      el.style.display = 'block';
+      setTimeout(()=>{ el.style.display='none'; }, 3200);
+    }
+
+    function currentStoreId(){
+      const sel = document.getElementById('qa-store');
+      return (sel && sel.value) ? sel.value : null;
+    }
+
+    async function ensureDefaults(id){
+      const storeId = id || currentStoreId();
+      if(!storeId) return toast('Select a store first', false);
+      const token = getAdminToken(); if(!token) return;
+      try{
+        const res = await fetch('/webhooks/ensure-defaults',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Admin-Token':token},
+          body: JSON.stringify({ store_id: Number(storeId) })
+        });
+        const j = await res.json();
+        if(!res.ok) throw new Error(j.detail || JSON.stringify(j));
+        toast('Webhooks ensured ✔️'); 
+        console.log(j);
+      }catch(e){ toast('Failed: '+e.message, false); }
+    }
+
+    async function installScriptTag(id){
+      const storeId = id || currentStoreId();
+      if(!storeId) return toast('Select a store first', false);
+      const token = getAdminToken(); if(!token) return;
+      try{
+        const res = await fetch('/pixel/install_script_tag',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Admin-Token':token},
+          body: JSON.stringify({ store_id: Number(storeId) })
+        });
+        const j = await res.json();
+        if(!res.ok) throw new Error(j.detail || JSON.stringify(j));
+        toast(j.status === 'exists' ? 'ScriptTag already exists' : 'ScriptTag installed ✔️');
+        console.log(j);
+      }catch(e){ toast('Failed: '+e.message, false); }
+    }
+
+    function copyText(t){
+      navigator.clipboard.writeText(t||'').then(()=>toast('Copied')).catch(()=>toast('Copy failed',false));
+    }
+
+    // --- Auto refresh toggle (simple page reload) ---
+    const auto = document.getElementById('autorefresh');
+    if(localStorage.getItem('AUTO_REFRESH') === '1'){ auto.checked = true; schedule(); }
+    auto?.addEventListener('change', ()=>{
+      if(auto.checked){ localStorage.setItem('AUTO_REFRESH','1'); schedule(); }
+      else{ localStorage.removeItem('AUTO_REFRESH'); if(window._autoTimer){ clearInterval(window._autoTimer); } }
+    });
+    function schedule(){ if(window._autoTimer){ clearInterval(window._autoTimer); }
+      window._autoTimer = setInterval(()=>location.reload(), 15000);
+    }
+
+    // --- Toggle details & pretty print JSON blobs ---
+    function toggleDetails(id){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.style.display = el.style.display === 'block' ? 'none' : 'block';
+      const pre = el.querySelector('.json[data-json]');
+      if(pre && !pre.dataset.pretty){
+        try{
+          const obj = JSON.parse(pre.dataset.json);
+          pre.textContent = JSON.stringify(obj, null, 2);
+          pre.dataset.pretty = '1';
+        }catch(_){ /* ignore */ }
+      }
+    }
+
+    // --- Filter audit table ---
+    function filterAudit(){
+      const q = (document.getElementById('filter-input').value || '').toLowerCase();
+      const rows = document.querySelectorAll('#audit-table tbody tr.audit-row');
+      rows.forEach(tr=>{
+        const text = tr.innerText.toLowerCase();
+        tr.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+    function clearFilter(){
+      const i = document.getElementById('filter-input'); if(i){ i.value=''; }
+      filterAudit();
+    }
+  </script>
+</body>
+</html>

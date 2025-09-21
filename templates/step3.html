@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step 3: Campaign Creation - Shopify Pinterest Automation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .flash-message { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .nav { margin: 20px 0; }
+        .nav a { margin-right: 15px; text-decoration: none; color: #007cba; }
+        .checkbox-group { display: flex; align-items: center; }
+        .checkbox-group input { width: auto; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Step 3: Campaign Creation</h1>
+    
+    <div class="nav">
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('step1_page') }}">Step 1</a>
+        <a href="{{ url_for('step2_page') }}">Step 2</a>
+        <a href="{{ url_for('step3_page') }}">Step 3</a>
+        <a href="{{ url_for('status_page') }}">Status</a>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('step3_process') }}">
+        <div class="form-group">
+            <label for="campaign_type">Campaign Type:</label>
+            <select name="campaign_type" id="campaign_type" required>
+                <option value="WEB_CONVERSION">Web Conversion</option>
+                <option value="CONSIDERATION">Consideration</option>
+                <option value="CATALOG_SALES">Catalog Sales</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="campaign_mode">Campaign Mode:</label>
+            <select name="campaign_mode" id="campaign_mode" required>
+                <option value="single_product">Single Product</option>
+                <option value="multi_product">Multi Product</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="products_per_campaign">Products per Campaign (2-50):</label>
+            <input type="number" name="products_per_campaign" id="products_per_campaign" value="10" min="2" max="50" required>
+        </div>
+
+        <div class="form-group">
+            <label for="daily_budget">Daily Budget (cents):</label>
+            <input type="number" name="daily_budget" id="daily_budget" value="100" min="1" required>
+            <small>Enter budget in cents (100 = $1.00)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="target_language">Target Language:</label>
+            <select name="target_language" id="target_language" required>
+                <option value="de">German</option>
+                <option value="en">English</option>
+                <option value="fr">French</option>
+                <option value="es">Spanish</option>
+                <option value="it">Italian</option>
+                <option value="nl">Dutch</option>
+                <option value="pt">Portuguese</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" name="enable_second_sheet" id="enable_second_sheet" value="true">
+                <label for="enable_second_sheet">Enable Second Sheet</label>
+            </div>
+        </div>
+
+        <div class="form-group" id="second_sheet_group" style="display: none;">
+            <label for="second_sheet_id">Second Sheet ID:</label>
+            <input type="text" name="second_sheet_id" id="second_sheet_id" placeholder="Enter Google Sheet ID">
+        </div>
+
+        <div class="form-group">
+            <label for="campaign_start_date">Campaign Start Date:</label>
+            <select name="campaign_start_date" id="campaign_start_date" required>
+                <option value="immediate">Immediate</option>
+                <option value="next_tuesday">Next Tuesday</option>
+                <option value="custom">Custom Date</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="custom_date_group" style="display: none;">
+            <label for="custom_start_date">Custom Start Date:</label>
+            <input type="date" name="custom_start_date" id="custom_start_date">
+        </div>
+
+        <button type="submit">Start Campaign Creation</button>
+    </form>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px;">
+        <h3>What Step 3 Does:</h3>
+        <ul>
+            <li>Creates Pinterest ad campaigns</li>
+            <li>Sets up targeting and budgets</li>
+            <li>Configures campaign settings</li>
+            <li>Launches campaigns on schedule</li>
+        </ul>
+    </div>
+
+    <script>
+        // Show/hide second sheet input based on checkbox
+        document.getElementById('enable_second_sheet').addEventListener('change', function() {
+            const secondSheetGroup = document.getElementById('second_sheet_group');
+            if (this.checked) {
+                secondSheetGroup.style.display = 'block';
+            } else {
+                secondSheetGroup.style.display = 'none';
+            }
+        });
+
+        // Show/hide custom date input based on selection
+        document.getElementById('campaign_start_date').addEventListener('change', function() {
+            const customDateGroup = document.getElementById('custom_date_group');
+            if (this.value === 'custom') {
+                customDateGroup.style.display = 'block';
+            } else {
+                customDateGroup.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -71,7 +71,7 @@ def load_second_sheet_data(sheet_id):
         try:
             data = sheet.get_all_records()
         except Exception as e:
-            if "header row in the worksheet is not unique" in str(e):
+            if "header row in the worksheet is not unique" in str(e) or "contains duplicates" in str(e):
                 print(f"[DEBUG] Duplicate headers detected, using alternative method")
                 # Get raw data and process manually
                 raw_data = sheet.get_all_values()
@@ -1630,7 +1630,30 @@ def create_ad_group(access_token, ad_account_id, campaign_id, product_name, max_
     return None
 
 
+def validate_pin_exists(access_token, pin_id):
+    """Validate if a pin exists before creating an ad"""
+    try:
+        url = f"{BASE_URL}/pins/{pin_id}"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            return True
+        elif response.status_code == 404:
+            print(f"⚠️ Pin {pin_id} not found - skipping ad creation")
+            return False
+        else:
+            print(f"⚠️ Could not validate pin {pin_id}: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"⚠️ Error validating pin {pin_id}: {e}")
+        return False
+
 def create_ad(access_token, ad_account_id, ad_group_id, pin_id, ad_name, creative_type="REGULAR", max_retries=3):
+    # Validate pin exists before creating ad
+    if not validate_pin_exists(access_token, pin_id):
+        return None
+    
     url = f"{BASE_URL}/ad_accounts/{ad_account_id}/ads"
     payload = {
         "ad_group_id": ad_group_id,

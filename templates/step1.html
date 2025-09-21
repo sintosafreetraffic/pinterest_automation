@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step 1: Content Generation - Shopify Pinterest Automation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .flash-message { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .nav { margin: 20px 0; }
+        .nav a { margin-right: 15px; text-decoration: none; color: #007cba; }
+    </style>
+</head>
+<body>
+    <h1>Step 1: Content Generation</h1>
+    
+    <div class="nav">
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('step1_page') }}">Step 1</a>
+        <a href="{{ url_for('step2_page') }}">Step 2</a>
+        <a href="{{ url_for('step3_page') }}">Step 3</a>
+        <a href="{{ url_for('status_page') }}">Status</a>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('step1_process') }}">
+        <div class="form-group">
+            <label for="collection_id">Select Collection:</label>
+            <select name="collection_id" id="collection_id" required>
+                {% if collections %}
+                    {% for collection_id, collection_name in collections %}
+                        <option value="{{ collection_id }}">{{ collection_name }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option disabled>⚠️ No collections found</option>
+                {% endif %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="image_limit">Images per Product (1-10):</label>
+            <input type="number" name="image_limit" id="image_limit" value="3" min="1" max="10" required>
+        </div>
+
+        <button type="submit">Start Content Generation</button>
+    </form>
+
+    <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 4px;">
+        <h3>What Step 1 Does:</h3>
+        <ul>
+            <li>Fetches products from the selected Shopify collection</li>
+            <li>Generates AI-powered Pin titles and descriptions</li>
+            <li>Saves all data to Google Sheets</li>
+            <li>Prepares content for Pinterest posting</li>
+        </ul>
+    </div>
+</body>
+</html>

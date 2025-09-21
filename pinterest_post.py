@@ -87,6 +87,27 @@ def get_or_create_board(access_token, board_name):
         "Content-Type": "application/json"
     }
 
+    # First, check if board already exists to avoid duplicate creation
+    try:
+        # Get user's boards to check for existing board
+        boards_url = f"{BASE_URL}/boards"
+        boards_response = requests.get(boards_url, headers=headers)
+        
+        if boards_response.status_code == 200:
+            existing_boards = boards_response.json().get("items", [])
+            for board in existing_boards:
+                if board.get("name") == board_name:
+                    board_id = board["id"]
+                    board_cache[board_name] = board_id
+                    print(f"📌 Found existing board: {board_name} (ID: {board_id})")
+                    return board_id
+    except Exception as e:
+        print(f"⚠️ Could not check existing boards: {e}")
+
+    # Add rate limiting delay
+    import time
+    time.sleep(1)  # 1 second delay between Pinterest API calls
+
     payload = {
         "name": board_name[:50],
         "privacy": "PUBLIC"
@@ -98,6 +119,16 @@ def get_or_create_board(access_token, board_name):
         board_cache[board_name] = board_id
         print(f"📌 Created board: {board_name}")
         return board_id
+    elif r.status_code == 429:  # Rate limit exceeded
+        print(f"⚠️ Rate limit exceeded for board creation. Waiting 60 seconds...")
+        time.sleep(60)
+        # Retry once after waiting
+        r = requests.post(CREATE_BOARD_URL, headers=headers, json=payload)
+        if r.status_code == 201:
+            board_id = r.json()["id"]
+            board_cache[board_name] = board_id
+            print(f"📌 Created board after retry: {board_name}")
+            return board_id
     else:
         print(f"❌ Failed to create board '{board_name}': {r.text}")
         return None
@@ -119,10 +150,22 @@ def post_pin(access_token, board_id, image_url, title, description):
         }
     }
 
+    # Add rate limiting delay
+    import time
+    time.sleep(2)  # 2 second delay between pin creation calls
+
     r = requests.post(PIN_CREATE_URL, headers=headers, json=payload)
     if r.status_code == 201:
         print(f"✅ Posted pin: {title}")
         return True
+    elif r.status_code == 429:  # Rate limit exceeded
+        print(f"⚠️ Rate limit exceeded for pin creation. Waiting 60 seconds...")
+        time.sleep(60)
+        # Retry once after waiting
+        r = requests.post(PIN_CREATE_URL, headers=headers, json=payload)
+        if r.status_code == 201:
+            print(f"✅ Posted pin after retry: {title}")
+            return True
     else:
         print(f"❌ Failed to post pin '{title}': {r.status_code} - {r.text}")
         return False

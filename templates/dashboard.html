@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Track AI – Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', Arial, sans-serif; background: #f6fafd; color: #1a294a; margin: 0; }
+    .topbar {
+      display: flex; justify-content: center; gap: 1.2em; align-items: center;
+      background: #f4f8fd; border-radius: 12px; box-shadow: 0 2px 8px #b4c8ff13;
+      padding: 1em 1.4em; margin: 1.5em auto 2.2em auto; font-size: 1em; max-width: 900px;
+    }
+    .nav-btn { text-decoration: none; font-weight: 600; padding: 0.4em 1.1em; border-radius: 7px; color: #274098; transition: background 0.14s; }
+    .nav-btn:hover { background: #e8effc; color: #1a294a; }
+    .nav-btn.active { background: linear-gradient(90deg,#517aff 60%,#63a8ff 100%); color: white; }
+    .container { background: white; border-radius: 20px; box-shadow: 0 8px 32px #b4c8ff30; max-width: 1100px; margin: 0 auto 3em auto; padding: 2.5em 2em; }
+    h1 { font-size: 2.1em; margin-bottom: 0.2em; text-align: left; color: #1a294a;}
+    .metrics { display: flex; gap: 2.2em; margin-bottom: 2.4em; flex-wrap: wrap; }
+    .metric {
+      flex: 1 0 110px; background: #f4f8fd; border-radius: 11px; padding: 1em 1.2em; box-shadow: 0 1px 8px #b4c8ff12;
+      min-width: 120px; text-align: center; margin-bottom: 1em;
+    }
+    .metric-title { font-size: 1em; color: #7287a9; }
+    .metric-value { font-size: 2.1em; font-weight: 700; color: #4068d8; }
+    .filters { display: flex; gap: 1em; margin-bottom: 1.3em; flex-wrap: wrap; }
+    .filters select, .filters input {
+      padding: 0.44em; font-size: 1em; border-radius: 7px; border: 1px solid #c2d2ee;
+      min-width: 145px; background: #f9fafc;
+    }
+    .filters button {
+      background: linear-gradient(90deg,#517aff 60%,#63a8ff 100%);
+      color: #fff; border: none; font-weight: 700; padding: 0.45em 1.5em;
+      border-radius: 7px; font-size: 1em; cursor: pointer; transition: background 0.15s;
+      box-shadow: 0 1px 6px #7ea9ee17;
+    }
+    .filters button:active { background: linear-gradient(90deg,#456be6 60%,#6295e6 100%);}
+    table { width: 100%; border-collapse: collapse; margin-top: 1em; font-size: 0.97em;}
+    th, td { padding: 0.85em 0.65em; text-align: left; border-bottom: 1px solid #e6eefb;}
+    th { background: #eef4fd; }
+    .badge { font-size: 0.88em; padding: 4px 10px; border-radius: 5px; font-weight: 500;}
+    .active { background: #e5f8ed; color: #217a50;}
+    .inactive { background: #fdeaea; color: #b74444;}
+    .conversions { font-family: monospace; font-size: 0.97em; line-height: 1.6;}
+    .conversion-rate { font-weight: bold; color: #217a50;}
+    .health-dot {
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      background: #31c48d; margin-right: 7px; vertical-align: middle; animation: blink 1.5s infinite alternate;
+    }
+    .health-dot.error { background: #e54b4b; animation: none; }
+    @keyframes blink { 0%{opacity:0.7;} 100%{opacity:1;} }
+    .mini { font-size: 0.93em; color: #7287a9; }
+    .no-data { color: #7287a9; text-align: center; font-size: 1.08em; margin: 2em 0;}
+    @media (max-width: 900px) { .metrics{flex-direction:column; gap:1em;} .container{padding:1em;} }
+    @media (max-width: 650px) { table, th, td{font-size:0.87em;} h1{font-size:1.3em;} }
+  </style>
+</head>
+<body>
+  <!-- NAV BAR -->
+  <div class="topbar">
+    <a href="/" class="nav-btn">Connect</a>
+    <a href="/status" class="nav-btn">Status</a>
+    <a href="/dashboard" class="nav-btn active">Dashboard</a>
+  </div>
+  <div class="container">
+    <h1>
+      <span class="health-dot" id="health-dot"></span>
+      Dashboard
+      <span class="mini" id="api-version"></span>
+    </h1>
+    <!-- METRICS -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-title">Stores Connected</div>
+        <div class="metric-value" id="metric-stores">–</div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Pixels/Tags</div>
+        <div class="metric-value" id="metric-pixels">–</div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Tracked Events</div>
+        <div class="metric-value" id="metric-events">–</div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Sales Last 7 Days</div>
+        <div class="metric-value" id="metric-sales7d">–</div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Revenue Last 7 Days</div>
+        <div class="metric-value" id="metric-revenue7d">–</div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Recent Errors</div>
+        <div class="metric-value" id="metric-errors">–</div>
+      </div>
+    </div>
+    <!-- FILTERS -->
+    <div class="filters">
+      <select id="platformFilter">
+        <option value="">All Platforms</option>
+        <option value="pinterest">Pinterest</option>
+        <option value="meta">Meta</option>
+        <option value="tiktok">TikTok</option>
+      </select>
+      <input type="text" id="storeFilter" placeholder="Store ID" />
+      <button onclick="loadDashboard()">Filter</button>
+      <span class="mini" style="margin-left:2em;" id="last-update"></span>
+    </div>
+    <!-- DASHBOARD TABLE -->
+    <table id="dashboardTable">
+      <thead>
+        <tr>
+          <th>Pixel ID</th>
+          <th>Platform</th>
+          <th>Store</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Conversions</th>
+          <th>Conversion Rate</th>
+          <th>Last Event</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="no-data" id="no-data" style="display:none;">No pixels/accounts tracked yet.</div>
+  </div>
+  <script>
+    async function loadDashboard() {
+      // Metrics
+      fetch('/api/metrics').then(res => res.json()).then(metrics => {
+        document.getElementById("metric-stores").innerText = metrics.stores ?? "–";
+        document.getElementById("metric-pixels").innerText = metrics.pixels ?? "–";
+        document.getElementById("metric-events").innerText = metrics.events ?? "–";
+        document.getElementById("metric-errors").innerText = (metrics.recent_errors || []).length;
+        document.getElementById("metric-sales7d").innerText = metrics.sales_last_7_days !== undefined
+          ? (typeof metrics.sales_last_7_days === 'number' ? metrics.sales_last_7_days.toLocaleString() : metrics.sales_last_7_days)
+          : "–";
+        document.getElementById("metric-revenue7d").innerText = metrics.revenue_last_7_days !== undefined
+          ? ("€ " + (metrics.revenue_last_7_days).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}))
+          : "–";
+        document.getElementById("health-dot").className = "health-dot" + ((metrics.recent_errors || []).length ? " error" : "");
+        document.getElementById("api-version").innerText = metrics.version ? "v" + metrics.version : "";
+      });
+
+      // Table data
+      const platform = document.getElementById("platformFilter").value;
+      const storeId = document.getElementById("storeFilter").value;
+      let url = "/api/dashboard";
+      const params = new URLSearchParams();
+      if (platform) params.append("platform", platform);
+      if (storeId) params.append("store_id", storeId);
+      if (params.toString()) url += "?" + params.toString();
+
+      const res = await fetch(url);
+      const data = await res.json();
+      const tbody = document.querySelector("#dashboardTable tbody");
+      tbody.innerHTML = "";
+      let found = false;
+      data.forEach(item => {
+        found = true;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.pixel_id}</td>
+          <td>${item.platform}</td>
+          <td>
+            ${item.store_name || "-"}<br/>
+            <small>${item.shopify_url || ""}</small>
+          </td>
+          <td><span class="badge ${item.active ? 'active' : 'inactive'}">${item.active ? 'Active' : 'Inactive'}</span></td>
+          <td>${item.created_at ? new Date(item.created_at).toLocaleString() : "-"}</td>
+          <td class="conversions">
+            ${Object.entries(item.conversions || {}).map(([k, v]) => `${k}: ${v}`).join("<br>")}
+          </td>
+          <td class="conversion-rate">${item.conversion_rate || "-"}</td>
+          <td>
+            ${item.last_event && item.last_event.event_type ? `<b>${item.last_event.event_type}</b><br>` : ""}
+            <span class="mini">${item.last_event && item.last_event.timestamp ? new Date(item.last_event.timestamp).toLocaleString() : "-"}</span>
+            ${item.last_error ? `<div class="badge inactive" style="margin-top:5px;">Last Error</div>` : ""}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById("no-data").style.display = found ? "none" : "";
+      document.getElementById("last-update").innerText = "Last updated: " + (new Date()).toLocaleTimeString();
+    }
+    window.onload = loadDashboard;
+  </script>
+</body>
+</html>
