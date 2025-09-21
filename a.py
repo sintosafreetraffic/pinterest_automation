@@ -71,7 +71,8 @@ def load_second_sheet_data(sheet_id):
         try:
             data = sheet.get_all_records()
         except Exception as e:
-            if "header row in the worksheet is not unique" in str(e) or "contains duplicates" in str(e):
+            error_msg = str(e).lower()
+            if any(phrase in error_msg for phrase in ["header row in the worksheet is not unique", "contains duplicates", "duplicate"]):
                 print(f"[DEBUG] Duplicate headers detected, using alternative method")
                 # Get raw data and process manually
                 raw_data = sheet.get_all_values()
@@ -1637,13 +1638,17 @@ def validate_pin_exists(access_token, pin_id):
         headers = {"Authorization": f"Bearer {access_token}"}
         response = requests.get(url, headers=headers)
         
+        print(f"[DEBUG] Validating pin {pin_id}: {response.status_code}")
+        
         if response.status_code == 200:
+            pin_data = response.json()
+            print(f"[DEBUG] Pin {pin_id} exists: {pin_data.get('id', 'No ID')}")
             return True
         elif response.status_code == 404:
-            print(f"⚠️ Pin {pin_id} not found - skipping ad creation")
+            print(f"⚠️ Pin {pin_id} not found (404) - skipping ad creation")
             return False
         else:
-            print(f"⚠️ Could not validate pin {pin_id}: {response.status_code}")
+            print(f"⚠️ Could not validate pin {pin_id}: {response.status_code} - {response.text}")
             return False
     except Exception as e:
         print(f"⚠️ Error validating pin {pin_id}: {e}")
@@ -1684,12 +1689,32 @@ def create_ad(access_token, ad_account_id, ad_group_id, pin_id, ad_name, creativ
             continue
 
         if response.status_code in (200, 201):
-            try:
-                ad_id = data["items"][0]["data"]["id"]
-                print(f"[SUCCESS] Created Ad ID: {ad_id}")
-                return ad_id
-            except Exception as e:
-                print(f"[ERROR] Unexpected format in ad response: {data}")
+            # Check for Pinterest API errors in the response
+            if "items" in data and len(data["items"]) > 0:
+                item = data["items"][0]
+                if "exceptions" in item:
+                    error_code = item["exceptions"].get("code")
+                    error_message = item["exceptions"].get("message", "")
+                    if error_code == 2941 and "Pin not found" in error_message:
+                        print(f"❌ Pin {pin_id} not found (2941) - skipping ad creation")
+                        return None
+                    else:
+                        print(f"❌ Pinterest API error: {error_code} - {error_message}")
+                        if attempt == max_retries:
+                            return None
+                        time.sleep(2)
+                        continue
+                elif "data" in item:
+                    try:
+                        ad_id = item["data"]["id"]
+                        print(f"[SUCCESS] Created Ad ID: {ad_id}")
+                        return ad_id
+                    except Exception as e:
+                        print(f"[ERROR] Could not extract ad ID: {e}")
+                        if attempt == max_retries:
+                            return None
+            else:
+                print(f"[ERROR] No items in response: {data}")
                 if attempt == max_retries:
                     return None
         else:
