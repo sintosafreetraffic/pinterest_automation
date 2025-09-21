@@ -52,7 +52,7 @@ def extract_product_id_from_url(url):
     return None
 
 def load_second_sheet_data(sheet_id):
-    """Load data from the second sheet (images/videos) and organize by product ID"""
+    """Load data from the second sheet (images/videos) and organize by product URL"""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -67,105 +67,36 @@ def load_second_sheet_data(sheet_id):
         # Open the second sheet
         sheet = client.open_by_key(sheet_id).sheet1
         
-        # Handle duplicate headers by getting raw data and processing manually
-        try:
-            data = sheet.get_all_records()
-        except Exception as e:
-            error_msg = str(e).lower()
-            if any(phrase in error_msg for phrase in ["header row in the worksheet is not unique", "contains duplicates", "duplicate"]):
-                print(f"[DEBUG] Duplicate headers detected, using alternative method")
-                # Get raw data and process manually
-                raw_data = sheet.get_all_values()
-                if not raw_data:
-                    print(f"[DEBUG] No data found in second sheet")
-                    return {}
-                
-                headers = raw_data[0]
-                print(f"[DEBUG] Raw headers: {headers}")
-                
-                # Make headers unique by adding numbers to duplicates
-                unique_headers = []
-                header_counts = {}
-                for header in headers:
-                    if header in header_counts:
-                        header_counts[header] += 1
-                        unique_headers.append(f"{header}_{header_counts[header]}")
-                    else:
-                        header_counts[header] = 0
-                        unique_headers.append(header)
-                
-                print(f"[DEBUG] Unique headers: {unique_headers}")
-                
-                # Convert to records format
-                data = []
-                for row in raw_data[1:]:  # Skip header row
-                    if len(row) >= len(unique_headers):
-                        record = {}
-                        for i, header in enumerate(unique_headers):
-                            record[header] = row[i] if i < len(row) else ""
-                        data.append(record)
-                
-                print(f"[DEBUG] Processed {len(data)} records with unique headers")
-            else:
-                raise e
+        # Get raw data directly (ignore duplicate headers)
+        print(f"[DEBUG] Getting raw data from second sheet...")
+        raw_data = sheet.get_all_values()
+        if not raw_data or len(raw_data) < 2:
+            print(f"[DEBUG] No data found in second sheet")
+            return {}
         
-        print(f"[DEBUG] Loaded {len(data)} rows from second sheet")
-        print(f"[DEBUG] Sample row: {data[0] if data else 'No data'}")
+        print(f"[DEBUG] Found {len(raw_data)} rows in second sheet")
         
-        # Organize by product ID
-        products_by_id = {}
-        for i, row in enumerate(data):
-            # Try multiple possible column names for product URL
-            product_url = None
-            possible_url_keys = ['Product URL', 'E', 'product_url', 'Product Link', 'Link', 'URL']
-            
-            print(f"[DEBUG] Row {i+1}: All row keys = {list(row.keys())}")
-            print(f"[DEBUG] Row {i+1}: All row values = {list(row.values())}")
-            
-            for key in possible_url_keys:
-                if key in row and row[key]:
-                    product_url = row[key]
-                    print(f"[DEBUG] Row {i+1}: Found product URL in column '{key}': '{product_url}'")
-                    break
-            
-            # Also try column E by index (5th column, index 4)
-            if not product_url and len(row) > 4:
-                # Get the 5th column value (index 4)
-                row_values = list(row.values())
-                if len(row_values) > 4:
-                    product_url = row_values[4]
-                    print(f"[DEBUG] Row {i+1}: Found product URL in column E (index 4): '{product_url}'")
-            
-            # Also try column D by index (4th column, index 3) - based on your data
-            if not product_url and len(row) > 3:
-                row_values = list(row.values())
-                if len(row_values) > 3:
-                    product_url = row_values[3]
-                    print(f"[DEBUG] Row {i+1}: Trying column D (index 3): '{product_url}'")
-            
-            print(f"[DEBUG] Row {i+1}: Final product URL = '{product_url}'")
-            
-            product_id = extract_product_id_from_url(product_url)
-            print(f"[DEBUG] Row {i+1}: Extracted product ID = '{product_id}'")
-            
-            if product_id:
-                # Since we only have one row per product ID, store directly (not in a list)
-                products_by_id[product_id] = row
-                print(f"[DEBUG] Row {i+1}: Added to products_by_id[{product_id}]")
-            else:
-                print(f"[DEBUG] Row {i+1}: No valid product ID found, skipping")
+        # Process data using column positions:
+        # Column E (index 4) = Product URL
+        # Columns J-M (indices 9-12) = Images/Videos
+        product_media = {}
+        
+        for i, row in enumerate(raw_data[1:], 1):  # Skip header row
+            if len(row) > 12:  # Ensure we have enough columns
+                product_url = row[4] if len(row) > 4 else ""  # Column E
                 if product_url:
-                    print(f"[DEBUG] Row {i+1}: URL format: '{product_url}'")
+                    # Get images/videos from columns J-M (indices 9-12)
+                    media_items = []
+                    for col_idx in range(9, 13):  # Columns J, K, L, M
+                        if col_idx < len(row) and row[col_idx]:
+                            media_items.append(row[col_idx])
+                    
+                    if media_items:
+                        product_media[product_url] = media_items
+                        print(f"[DEBUG] Row {i}: Found {len(media_items)} media items for {product_url}")
         
-        print(f"📊 Loaded {len(products_by_id)} products from second sheet")
-        print(f"[DEBUG] Products by ID: {list(products_by_id.keys())}")
-        
-        # Show sample of second sheet data for debugging
-        print(f"[DEBUG] Sample second sheet data:")
-        for i, (product_id, data) in enumerate(list(products_by_id.items())[:3]):  # Show first 3
-            print(f"  Product ID {product_id}: {data}")
-        
-        return products_by_id
+        print(f"[DEBUG] Loaded media for {len(product_media)} products")
+        return product_media
         
     except Exception as e:
         print(f"❌ Error loading second sheet: {e}")
