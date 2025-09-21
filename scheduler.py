@@ -94,16 +94,20 @@ def run_automation_workflow():
         try:
             from forefront import run_step3_campaign_creation
             # Configure for multi-product campaigns: 10 products, 10 euro budget
-            second_sheet_id = os.getenv("SECOND_SHEET_ID", "")
-            enable_second_sheet = bool(second_sheet_id)
+            second_sheet_id = os.getenv("SECOND_SHEET_ID")
+            if not second_sheet_id:
+                logger.error("❌ CRITICAL ERROR: SECOND_SHEET_ID environment variable is required for multi-product campaigns!")
+                logger.error("❌ Please set SECOND_SHEET_ID in Render environment variables")
+                return False
             
+            logger.info(f"✅ Using second sheet ID: {second_sheet_id}")
             campaigns_success = run_step3_campaign_creation(
                 campaign_mode="multi_product",
                 products_per_campaign=10,
                 daily_budget=1000,  # 10 euro in cents
                 campaign_type="WEB_CONVERSION",
                 target_language="de",
-                enable_second_sheet=enable_second_sheet,
+                enable_second_sheet=True,
                 second_sheet_id=second_sheet_id,
                 campaign_start_date="next_tuesday",
                 custom_start_date=""
@@ -140,7 +144,7 @@ def main():
         'PINTEREST_APP_SECRET',
         'OPENAI_API_KEY',
         'SHEET_ID',
-        'SECOND_SHEET_ID'  # For multi-product campaigns
+        'SECOND_SHEET_ID'  # Required for multi-product campaigns
     ]
     
     missing_vars = [var for var in required_vars if not os.getenv(var)]
