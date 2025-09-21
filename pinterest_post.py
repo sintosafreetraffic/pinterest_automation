@@ -87,32 +87,54 @@ def get_or_create_board(access_token, board_name):
         "Content-Type": "application/json"
     }
 
-    # First, check if board already exists
+    # First, check if board already exists (with pagination)
     try:
-        # Get user's boards to check for existing board
-        boards_url = f"{BASE_URL}/boards"
-        boards_response = requests.get(boards_url, headers=headers)
-        
         print(f"[DEBUG] Checking for existing board: {board_name}")
-        print(f"[DEBUG] Boards API response: {boards_response.status_code}")
         
-        if boards_response.status_code == 200:
-            existing_boards = boards_response.json().get("items", [])
-            print(f"[DEBUG] Found {len(existing_boards)} existing boards")
+        # Get ALL boards using pagination
+        all_boards = []
+        page_size = 25
+        page = 1
+        
+        while True:
+            boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
+            boards_response = requests.get(boards_url, headers=headers)
             
-            for board in existing_boards:
-                board_name_found = board.get("name", "")
-                print(f"[DEBUG] Checking board: '{board_name_found}' vs '{board_name}'")
-                if board_name_found == board_name:
-                    board_id = board["id"]
-                    board_cache[board_name] = board_id
-                    print(f"📌 Found existing board: {board_name} (ID: {board_id})")
-                    return board_id
+            print(f"[DEBUG] Boards API page {page} response: {boards_response.status_code}")
             
-            print(f"[DEBUG] Board '{board_name}' not found in existing boards, will create new one")
-        else:
-            print(f"[DEBUG] Boards API failed: {boards_response.status_code} - {boards_response.text}")
-            print(f"[DEBUG] Will attempt to create board anyway")
+            if boards_response.status_code == 200:
+                response_data = boards_response.json()
+                page_boards = response_data.get("items", [])
+                all_boards.extend(page_boards)
+                
+                print(f"[DEBUG] Page {page}: Found {len(page_boards)} boards (total so far: {len(all_boards)})")
+                
+                # Check if we have more pages
+                if len(page_boards) < page_size:
+                    print(f"[DEBUG] Reached last page (got {len(page_boards)} boards, expected {page_size})")
+                    break
+                else:
+                    page += 1
+                    # Add delay between pages to respect rate limits
+                    time.sleep(0.5)
+            else:
+                print(f"[DEBUG] Boards API failed on page {page}: {boards_response.status_code} - {boards_response.text}")
+                break
+        
+        print(f"[DEBUG] Total boards found across all pages: {len(all_boards)}")
+        
+        # Search through all boards
+        for board in all_boards:
+            board_name_found = board.get("name", "")
+            print(f"[DEBUG] Checking board: '{board_name_found}' vs '{board_name}'")
+            if board_name_found == board_name:
+                board_id = board["id"]
+                board_cache[board_name] = board_id
+                print(f"📌 Found existing board: {board_name} (ID: {board_id})")
+                return board_id
+        
+        print(f"[DEBUG] Board '{board_name}' not found in {len(all_boards)} existing boards, will create new one")
+        
     except Exception as e:
         print(f"⚠️ Could not check existing boards: {e}")
         print(f"[DEBUG] Will attempt to create board anyway")
@@ -151,17 +173,36 @@ def get_or_create_board(access_token, board_name):
         try:
             error_data = r.json()
             if error_data.get("code") == 58 and "already have a board with this name" in error_data.get("message", ""):
-                print(f"⚠️ Board '{board_name}' already exists (creation failed). Finding it...")
-                # Try to find the existing board again
-                boards_response = requests.get(f"{BASE_URL}/boards", headers=headers)
-                if boards_response.status_code == 200:
-                    existing_boards = boards_response.json().get("items", [])
-                    for board in existing_boards:
-                        if board.get("name") == board_name:
-                            board_id = board["id"]
-                            board_cache[board_name] = board_id
-                            print(f"📌 Found existing board after creation failed: {board_name} (ID: {board_id})")
-                            return board_id
+                print(f"⚠️ Board '{board_name}' already exists (creation failed). Finding it with pagination...")
+                # Try to find the existing board again with pagination
+                all_boards = []
+                page_size = 25
+                page = 1
+                
+                while True:
+                    boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
+                    boards_response = requests.get(boards_url, headers=headers)
+                    
+                    if boards_response.status_code == 200:
+                        response_data = boards_response.json()
+                        page_boards = response_data.get("items", [])
+                        all_boards.extend(page_boards)
+                        
+                        if len(page_boards) < page_size:
+                            break
+                        else:
+                            page += 1
+                            time.sleep(0.5)  # Rate limiting
+                    else:
+                        break
+                
+                print(f"[DEBUG] Searching through {len(all_boards)} boards for '{board_name}'")
+                for board in all_boards:
+                    if board.get("name") == board_name:
+                        board_id = board["id"]
+                        board_cache[board_name] = board_id
+                        print(f"📌 Found existing board after creation failed: {board_name} (ID: {board_id})")
+                        return board_id
         except Exception as e:
             print(f"⚠️ Could not parse error response: {e}")
     else:
