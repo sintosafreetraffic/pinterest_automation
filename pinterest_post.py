@@ -301,7 +301,7 @@ def get_or_create_board(access_token, board_name):
         print(f"❌ Failed to create board '{board_name}': {r.text}")
         return None
 
-def post_pin(access_token, board_id, image_url, title, description):
+def post_pin(access_token, board_id, image_url, title, description, destination_url=None):
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
@@ -317,6 +317,13 @@ def post_pin(access_token, board_id, image_url, title, description):
             "url": image_url
         }
     }
+    
+    # Add destination URL (link) if provided
+    if destination_url:
+        payload["link"] = destination_url
+        print(f"[DEBUG] Adding destination URL to pin: {destination_url}")
+    else:
+        print(f"[DEBUG] No destination URL provided for pin")
 
     # Add rate limiting delay
     import time
@@ -359,13 +366,14 @@ def main():
         pin_title = row_data["Generated Pin Title"]
         pin_description = row_data["Generated Pin Description"]
         board_name = row_data["Board Title"]
+        product_url = row_data.get("Product URL", "")  # Get product URL if available
 
         if not (image_url and pin_title and pin_description and board_name):
             print(f"⚠️ Skipping row {i + 1} due to missing fields.")
             continue
 
         board_id = row_data["Board ID"] or get_or_create_board(access_token, board_name)
-        if board_id and post_pin(access_token, board_id, image_url, pin_title, pin_description):
+        if board_id and post_pin(access_token, board_id, image_url, pin_title, pin_description, product_url):
             update_sheet(sheet_service, i + 1, board_id)
 
 if __name__ == "__main__":
