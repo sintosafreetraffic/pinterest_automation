@@ -34,6 +34,13 @@ def run_automation_workflow():
     4. Create Pinterest campaigns (multi-product, 10 euro budget)
     """
     try:
+        # Setup Google credentials first
+        logger.info("🔧 Setting up Google credentials...")
+        from fix_credentials import setup_google_credentials
+        if not setup_google_credentials():
+            logger.error("❌ Failed to setup Google credentials")
+            return False
+        
         logger.info("🚀 Starting Shopify-Pinterest Automation Workflow")
         logger.info(f"⏰ Execution time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
