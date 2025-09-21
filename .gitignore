@@ -2,3 +2,7 @@
 google_sheets_credentials.json
 pinterest_token.json
 *.pyc
+track-ai/
+*.log
+credentials.json
+script.py
