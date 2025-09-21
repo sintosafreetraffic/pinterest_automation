@@ -14,7 +14,7 @@ TOKEN_FILE = "pinterest_token.json"
 PINTEREST_APP_ID = os.getenv("PINTEREST_APP_ID")
 PINTEREST_APP_SECRET = os.getenv("PINTEREST_APP_SECRET")
 
-USE_SANDBOX = True
+USE_SANDBOX = False
 BASE_URL = "https://api-sandbox.pinterest.com/v5" if USE_SANDBOX else "https://api.pinterest.com/v5"
 
 PIN_CREATE_URL = f"{BASE_URL}/pins"
@@ -36,13 +36,8 @@ def save_tokens(tokens):
     with open(TOKEN_FILE, "w") as f:
         json.dump(tokens, f, indent=2)
 
-def get_access_token():
-    tokens = load_tokens()
-    access_token = tokens.get("access_token")
-    if not access_token:
-        print("❌ No access_token found in pinterest_token.json")
-        exit(1)
-    return access_token
+# Import the get_access_token function from pinterest_auth which has token refresh logic
+from pinterest_auth import get_access_token
 
 
 def get_sheet_service():
