@@ -5,7 +5,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python3 scheduler.py
     plan: starter
-    schedule: "0 9,21 * * *"  # Run at 9 AM and 9 PM UTC daily
+    schedule: "*/5 * * * *"  # Run every 5 minutes
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
