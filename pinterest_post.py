@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
@@ -91,12 +92,13 @@ def get_or_create_board(access_token, board_name):
     try:
         print(f"[DEBUG] Checking for existing board: {board_name}")
         
-        # Get ALL boards using pagination
+        # Get ALL boards using pagination (with reasonable limit)
         all_boards = []
         page_size = 25
         page = 1
+        max_pages = 10  # Limit to 10 pages (250 boards max)
         
-        while True:
+        while page <= max_pages:
             boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
             boards_response = requests.get(boards_url, headers=headers)
             
@@ -143,7 +145,6 @@ def get_or_create_board(access_token, board_name):
     print(f"[DEBUG] Creating new board: {board_name}")
     
     # Add rate limiting delay
-    import time
     time.sleep(1)  # 1 second delay between Pinterest API calls
 
     payload = {
@@ -178,8 +179,9 @@ def get_or_create_board(access_token, board_name):
                 all_boards = []
                 page_size = 25
                 page = 1
+                max_pages = 10  # Limit to 10 pages (250 boards max)
                 
-                while True:
+                while page <= max_pages:
                     boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
                     boards_response = requests.get(boards_url, headers=headers)
                     
