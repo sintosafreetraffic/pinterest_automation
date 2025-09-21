@@ -1,3 +1,4 @@
+
 import os
 import json
 import requests
@@ -28,6 +29,7 @@ HEADERS = [
 ]
 
 board_cache = {}
+all_boards_cache = None
 
 def load_tokens():
     with open(TOKEN_FILE) as f:
@@ -79,6 +81,141 @@ def update_sheet(sheet_service, row_index, board_id):
         body=body
     ).execute()
 
+def get_all_boards(access_token):
+    """Get all boards once and cache them"""
+    global all_boards_cache
+    
+    if all_boards_cache is not None:
+        return all_boards_cache
+    
+    print(f"[DEBUG] Fetching all boards (one-time operation)...")
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    all_boards = []
+    page_size = 250  # Increased from 25 to 250 to get more boards per page
+    page = 1
+    max_pages = 10  # Reduced max pages since we're getting more per page
+    
+    while page <= max_pages:
+        boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
+        boards_response = requests.get(boards_url, headers=headers)
+        
+        print(f"[DEBUG] Boards API page {page} response: {boards_response.status_code}")
+        
+        if boards_response.status_code == 200:
+            response_data = boards_response.json()
+            page_boards = response_data.get("items", [])
+            
+            # Debug: Check the actual response structure
+            print(f"[DEBUG] Page {page} response structure: {list(response_data.keys())}")
+            if "bookmark" in response_data:
+                print(f"[DEBUG] Page {page} has bookmark: {response_data['bookmark']}")
+            if "has_next" in response_data:
+                print(f"[DEBUG] Page {page} has_next: {response_data['has_next']}")
+            
+            # Check for duplicates before adding
+            new_boards = []
+            for board in page_boards:
+                board_id = board.get("id")
+                if not any(existing.get("id") == board_id for existing in all_boards):
+                    new_boards.append(board)
+                else:
+                    print(f"[DEBUG] Skipping duplicate board: {board.get('name', 'No name')} (ID: {board_id})")
+            
+            all_boards.extend(new_boards)
+            
+            print(f"[DEBUG] Page {page}: Found {len(page_boards)} boards, {len(new_boards)} new (total so far: {len(all_boards)})")
+            
+            # Check if we have more pages using Pinterest's pagination indicators
+            has_more_pages = True
+            
+            # Check Pinterest's pagination indicators
+            if "has_next" in response_data and not response_data["has_next"]:
+                print(f"[DEBUG] Pinterest API indicates no more pages (has_next: false)")
+                has_more_pages = False
+            elif len(page_boards) < page_size:
+                print(f"[DEBUG] Reached last page (got {len(page_boards)} boards, expected {page_size})")
+                has_more_pages = False
+            elif len(page_boards) == 0:
+                print(f"[DEBUG] No boards returned on page {page} - reached end")
+                has_more_pages = False
+            
+            if not has_more_pages:
+                break
+            else:
+                page += 1
+                # Add delay between pages to respect rate limits
+                time.sleep(0.5)
+        else:
+            print(f"[DEBUG] Boards API failed on page {page}: {boards_response.status_code} - {boards_response.text}")
+            break
+    
+    print(f"[DEBUG] Total boards fetched: {len(all_boards)}")
+    
+    # Log all board names for debugging
+    print(f"[DEBUG] All board names found:")
+    for i, board in enumerate(all_boards, 1):
+        board_name = board.get("name", "No name")
+        print(f"[DEBUG] {i:3d}. '{board_name}' (length: {len(board_name)})")
+        
+        # Check if this board name contains "Outfit" or "Inspirationen"
+        if "Outfit" in board_name or "Inspirationen" in board_name:
+            print(f"[DEBUG] *** POTENTIAL MATCH: '{board_name}' ***")
+            print(f"[DEBUG] *** Contains 'Outfit': {'Outfit' in board_name}")
+            print(f"[DEBUG] *** Contains 'Inspirationen': {'Inspirationen' in board_name}")
+            print(f"[DEBUG] *** Exact match: {board_name == 'Outfit Inspirationen'}")
+            print(f"[DEBUG] *** Stripped match: {board_name.strip() == 'Outfit Inspirationen'}")
+            print(f"[DEBUG] *** Repr: {repr(board_name)}")
+    
+    all_boards_cache = all_boards
+    return all_boards
+
+def search_board_by_name(access_token, board_name):
+    """Search for a board by name using Pinterest's search API"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Use Pinterest's search API to find boards by name
+        search_url = f"{BASE_URL}/search/boards"
+        params = {
+            "query": board_name,
+            "page_size": 25
+        }
+        
+        print(f"[DEBUG] Searching for board by name: '{board_name}'")
+        response = requests.get(search_url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            boards = data.get("items", [])
+            print(f"[DEBUG] Search found {len(boards)} boards matching '{board_name}'")
+            
+            for board in boards:
+                found_name = board.get("name", "")
+                if found_name == board_name:
+                    board_id = board["id"]
+                    print(f"📌 Found board via search: {board_name} (ID: {board_id})")
+                    return board_id
+                else:
+                    print(f"[DEBUG] Search result: '{found_name}' (not exact match)")
+            
+            print(f"[DEBUG] No exact match found in search results")
+            return None
+        else:
+            print(f"[DEBUG] Board search failed: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"[DEBUG] Error searching for board: {e}")
+        return None
+
 def get_or_create_board(access_token, board_name):
     if board_name in board_cache:
         return board_cache[board_name]
@@ -88,47 +225,20 @@ def get_or_create_board(access_token, board_name):
         "Content-Type": "application/json"
     }
 
-    # First, check if board already exists (with pagination)
+    # Search through cached boards (board search requires additional permissions)
     try:
-        print(f"[DEBUG] Checking for existing board: {board_name}")
+        print(f"[DEBUG] Falling back to cached boards for: {board_name}")
         
-        # Get ALL boards using pagination (with reasonable limit)
-        all_boards = []
-        page_size = 25
-        page = 1
-        max_pages = 10  # Limit to 10 pages (250 boards max)
+        # Get all boards (cached)
+        all_boards = get_all_boards(access_token)
         
-        while page <= max_pages:
-            boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
-            boards_response = requests.get(boards_url, headers=headers)
-            
-            print(f"[DEBUG] Boards API page {page} response: {boards_response.status_code}")
-            
-            if boards_response.status_code == 200:
-                response_data = boards_response.json()
-                page_boards = response_data.get("items", [])
-                all_boards.extend(page_boards)
-                
-                print(f"[DEBUG] Page {page}: Found {len(page_boards)} boards (total so far: {len(all_boards)})")
-                
-                # Check if we have more pages
-                if len(page_boards) < page_size:
-                    print(f"[DEBUG] Reached last page (got {len(page_boards)} boards, expected {page_size})")
-                    break
-                else:
-                    page += 1
-                    # Add delay between pages to respect rate limits
-                    time.sleep(0.5)
-            else:
-                print(f"[DEBUG] Boards API failed on page {page}: {boards_response.status_code} - {boards_response.text}")
-                break
-        
-        print(f"[DEBUG] Total boards found across all pages: {len(all_boards)}")
-        
-        # Search through all boards
+        # Search through cached boards
+        print(f"[DEBUG] Searching for board: '{board_name}' (length: {len(board_name)})")
+        print(f"[DEBUG] Target board repr: {repr(board_name)}")
         for board in all_boards:
             board_name_found = board.get("name", "")
-            print(f"[DEBUG] Checking board: '{board_name_found}' vs '{board_name}'")
+            print(f"[DEBUG] Checking: '{board_name_found}' vs '{board_name}'")
+            print(f"[DEBUG] Found board repr: {repr(board_name_found)}")
             if board_name_found == board_name:
                 board_id = board["id"]
                 board_cache[board_name] = board_id
@@ -174,31 +284,11 @@ def get_or_create_board(access_token, board_name):
         try:
             error_data = r.json()
             if error_data.get("code") == 58 and "already have a board with this name" in error_data.get("message", ""):
-                print(f"⚠️ Board '{board_name}' already exists (creation failed). Finding it with pagination...")
-                # Try to find the existing board again with pagination
-                all_boards = []
-                page_size = 25
-                page = 1
-                max_pages = 10  # Limit to 10 pages (250 boards max)
+                print(f"⚠️ Board '{board_name}' already exists (creation failed). Finding it in cached boards...")
+                # Try to find the existing board in cached boards
+                all_boards = get_all_boards(access_token)
                 
-                while page <= max_pages:
-                    boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
-                    boards_response = requests.get(boards_url, headers=headers)
-                    
-                    if boards_response.status_code == 200:
-                        response_data = boards_response.json()
-                        page_boards = response_data.get("items", [])
-                        all_boards.extend(page_boards)
-                        
-                        if len(page_boards) < page_size:
-                            break
-                        else:
-                            page += 1
-                            time.sleep(0.5)  # Rate limiting
-                    else:
-                        break
-                
-                print(f"[DEBUG] Searching through {len(all_boards)} boards for '{board_name}'")
+                print(f"[DEBUG] Searching through {len(all_boards)} cached boards for '{board_name}'")
                 for board in all_boards:
                     if board.get("name") == board_name:
                         board_id = board["id"]
@@ -250,6 +340,12 @@ def post_pin(access_token, board_id, image_url, title, description):
 
 def main():
     access_token = get_access_token()
+    
+    # Fetch all boards once at the start (this will cache them)
+    print("🔄 Fetching all Pinterest boards (one-time operation)...")
+    get_all_boards(access_token)
+    print("✅ All boards cached successfully")
+    
     sheet_service = get_sheet_service()
     data = get_data(sheet_service)
 
