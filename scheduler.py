@@ -66,7 +66,9 @@ def run_automation_workflow():
         logger.info("🤖 Step 2: Checking for products needing content generation...")
         try:
             from forefront import run_step1_content_generation
-            content_success = run_step1_content_generation()
+            # Use the READY FOR PINTEREST collection ID
+            ready_collection_id = os.getenv("SHOPIFY_COLLECTION_ID", "644749033796")
+            content_success = run_step1_content_generation(ready_collection_id)
             if content_success:
                 logger.info("✅ Step 2 completed: Pin titles and descriptions generated")
             else:
