@@ -9,7 +9,7 @@ import urllib.parse
 load_dotenv()
 
 SPREADSHEET_ID = os.getenv("SHEET_ID")
-CREDENTIALS_FILE = "google_sheets_credentials.json"
+CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE = "pinterest_token.json"
 PINTEREST_APP_ID = os.getenv("PINTEREST_APP_ID")
 PINTEREST_APP_SECRET = os.getenv("PINTEREST_APP_SECRET")
