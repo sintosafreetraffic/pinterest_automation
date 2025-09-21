@@ -96,9 +96,9 @@ def get_all_boards(access_token):
     }
     
     all_boards = []
-    page_size = 250  # Increased from 25 to 250 to get more boards per page
+    page_size = 2000  # Maximum boards per page to get all boards in one request
     page = 1
-    max_pages = 10  # Reduced max pages since we're getting more per page
+    max_pages = 5  # Reduced max pages since we're getting many more per page
     
     while page <= max_pages:
         boards_url = f"{BASE_URL}/boards?page_size={page_size}&page={page}"
