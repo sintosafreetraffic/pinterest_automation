@@ -41,6 +41,12 @@ def run_automation_workflow():
             logger.error("❌ Failed to setup Google credentials")
             return False
         
+        # Setup Pinterest token
+        logger.info("🔧 Setting up Pinterest token...")
+        from fix_pinterest_token import setup_pinterest_token
+        if not setup_pinterest_token():
+            logger.warning("⚠️ Failed to setup Pinterest token - pin creation and campaigns may fail")
+        
         logger.info("🚀 Starting Shopify-Pinterest Automation Workflow")
         logger.info(f"⏰ Execution time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
