@@ -1,191 +1,382 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <title>Track AI – Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', Arial, sans-serif; background: #f6fafd; color: #1a294a; margin: 0; }
-    .topbar {
-      display: flex; justify-content: center; gap: 1.2em; align-items: center;
-      background: #f4f8fd; border-radius: 12px; box-shadow: 0 2px 8px #b4c8ff13;
-      padding: 1em 1.4em; margin: 1.5em auto 2.2em auto; font-size: 1em; max-width: 900px;
-    }
-    .nav-btn { text-decoration: none; font-weight: 600; padding: 0.4em 1.1em; border-radius: 7px; color: #274098; transition: background 0.14s; }
-    .nav-btn:hover { background: #e8effc; color: #1a294a; }
-    .nav-btn.active { background: linear-gradient(90deg,#517aff 60%,#63a8ff 100%); color: white; }
-    .container { background: white; border-radius: 20px; box-shadow: 0 8px 32px #b4c8ff30; max-width: 1100px; margin: 0 auto 3em auto; padding: 2.5em 2em; }
-    h1 { font-size: 2.1em; margin-bottom: 0.2em; text-align: left; color: #1a294a;}
-    .metrics { display: flex; gap: 2.2em; margin-bottom: 2.4em; flex-wrap: wrap; }
-    .metric {
-      flex: 1 0 110px; background: #f4f8fd; border-radius: 11px; padding: 1em 1.2em; box-shadow: 0 1px 8px #b4c8ff12;
-      min-width: 120px; text-align: center; margin-bottom: 1em;
-    }
-    .metric-title { font-size: 1em; color: #7287a9; }
-    .metric-value { font-size: 2.1em; font-weight: 700; color: #4068d8; }
-    .filters { display: flex; gap: 1em; margin-bottom: 1.3em; flex-wrap: wrap; }
-    .filters select, .filters input {
-      padding: 0.44em; font-size: 1em; border-radius: 7px; border: 1px solid #c2d2ee;
-      min-width: 145px; background: #f9fafc;
-    }
-    .filters button {
-      background: linear-gradient(90deg,#517aff 60%,#63a8ff 100%);
-      color: #fff; border: none; font-weight: 700; padding: 0.45em 1.5em;
-      border-radius: 7px; font-size: 1em; cursor: pointer; transition: background 0.15s;
-      box-shadow: 0 1px 6px #7ea9ee17;
-    }
-    .filters button:active { background: linear-gradient(90deg,#456be6 60%,#6295e6 100%);}
-    table { width: 100%; border-collapse: collapse; margin-top: 1em; font-size: 0.97em;}
-    th, td { padding: 0.85em 0.65em; text-align: left; border-bottom: 1px solid #e6eefb;}
-    th { background: #eef4fd; }
-    .badge { font-size: 0.88em; padding: 4px 10px; border-radius: 5px; font-weight: 500;}
-    .active { background: #e5f8ed; color: #217a50;}
-    .inactive { background: #fdeaea; color: #b74444;}
-    .conversions { font-family: monospace; font-size: 0.97em; line-height: 1.6;}
-    .conversion-rate { font-weight: bold; color: #217a50;}
-    .health-dot {
-      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
-      background: #31c48d; margin-right: 7px; vertical-align: middle; animation: blink 1.5s infinite alternate;
-    }
-    .health-dot.error { background: #e54b4b; animation: none; }
-    @keyframes blink { 0%{opacity:0.7;} 100%{opacity:1;} }
-    .mini { font-size: 0.93em; color: #7287a9; }
-    .no-data { color: #7287a9; text-align: center; font-size: 1.08em; margin: 2em 0;}
-    @media (max-width: 900px) { .metrics{flex-direction:column; gap:1em;} .container{padding:1em;} }
-    @media (max-width: 650px) { table, th, td{font-size:0.87em;} h1{font-size:1.3em;} }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopify Pinterest Automation Dashboard</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4f6cff 0%, #76a0ff 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 2.5em; font-weight: 700; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1em; }
+        
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            padding: 40px;
+        }
+        
+        .step-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .step-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            border-color: #4f6cff;
+        }
+        
+        .step-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4f6cff, #76a0ff);
+        }
+        
+        .step-number {
+            background: linear-gradient(135deg, #4f6cff, #76a0ff);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+        
+        .step-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .step-description {
+            color: #6c757d;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4f6cff;
+            box-shadow: 0 0 0 3px rgba(79, 108, 255, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4f6cff, #76a0ff);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 108, 255, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .status-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .status-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4f6cff;
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .status-value {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .flash-message {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        .nav {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        
+        .nav a {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .nav a:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .nav a.active {
+            background: rgba(255,255,255,0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .steps-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- NAV BAR -->
-  <div class="topbar">
-    <a href="/" class="nav-btn">Connect</a>
-    <a href="/status" class="nav-btn">Status</a>
-    <a href="/dashboard" class="nav-btn active">Dashboard</a>
-  </div>
-  <div class="container">
-    <h1>
-      <span class="health-dot" id="health-dot"></span>
-      Dashboard
-      <span class="mini" id="api-version"></span>
-    </h1>
-    <!-- METRICS -->
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-title">Stores Connected</div>
-        <div class="metric-value" id="metric-stores">–</div>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Pixels/Tags</div>
-        <div class="metric-value" id="metric-pixels">–</div>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Tracked Events</div>
-        <div class="metric-value" id="metric-events">–</div>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Sales Last 7 Days</div>
-        <div class="metric-value" id="metric-sales7d">–</div>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Revenue Last 7 Days</div>
-        <div class="metric-value" id="metric-revenue7d">–</div>
-      </div>
-      <div class="metric">
-        <div class="metric-title">Recent Errors</div>
-        <div class="metric-value" id="metric-errors">–</div>
-      </div>
-    </div>
-    <!-- FILTERS -->
-    <div class="filters">
-      <select id="platformFilter">
-        <option value="">All Platforms</option>
-        <option value="pinterest">Pinterest</option>
-        <option value="meta">Meta</option>
-        <option value="tiktok">TikTok</option>
-      </select>
-      <input type="text" id="storeFilter" placeholder="Store ID" />
-      <button onclick="loadDashboard()">Filter</button>
-      <span class="mini" style="margin-left:2em;" id="last-update"></span>
-    </div>
-    <!-- DASHBOARD TABLE -->
-    <table id="dashboardTable">
-      <thead>
-        <tr>
-          <th>Pixel ID</th>
-          <th>Platform</th>
-          <th>Store</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Conversions</th>
-          <th>Conversion Rate</th>
-          <th>Last Event</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div class="no-data" id="no-data" style="display:none;">No pixels/accounts tracked yet.</div>
-  </div>
-  <script>
-    async function loadDashboard() {
-      // Metrics
-      fetch('/api/metrics').then(res => res.json()).then(metrics => {
-        document.getElementById("metric-stores").innerText = metrics.stores ?? "–";
-        document.getElementById("metric-pixels").innerText = metrics.pixels ?? "–";
-        document.getElementById("metric-events").innerText = metrics.events ?? "–";
-        document.getElementById("metric-errors").innerText = (metrics.recent_errors || []).length;
-        document.getElementById("metric-sales7d").innerText = metrics.sales_last_7_days !== undefined
-          ? (typeof metrics.sales_last_7_days === 'number' ? metrics.sales_last_7_days.toLocaleString() : metrics.sales_last_7_days)
-          : "–";
-        document.getElementById("metric-revenue7d").innerText = metrics.revenue_last_7_days !== undefined
-          ? ("€ " + (metrics.revenue_last_7_days).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}))
-          : "–";
-        document.getElementById("health-dot").className = "health-dot" + ((metrics.recent_errors || []).length ? " error" : "");
-        document.getElementById("api-version").innerText = metrics.version ? "v" + metrics.version : "";
-      });
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Shopify Pinterest Automation</h1>
+            <p>Complete automation workflow in 3 simple steps</p>
+            
+            <div class="nav">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
+                <a href="{{ url_for('status_page') }}">Status</a>
+            </div>
+        </div>
 
-      // Table data
-      const platform = document.getElementById("platformFilter").value;
-      const storeId = document.getElementById("storeFilter").value;
-      let url = "/api/dashboard";
-      const params = new URLSearchParams();
-      if (platform) params.append("platform", platform);
-      if (storeId) params.append("store_id", storeId);
-      if (params.toString()) url += "?" + params.toString();
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-      const res = await fetch(url);
-      const data = await res.json();
-      const tbody = document.querySelector("#dashboardTable tbody");
-      tbody.innerHTML = "";
-      let found = false;
-      data.forEach(item => {
-        found = true;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${item.pixel_id}</td>
-          <td>${item.platform}</td>
-          <td>
-            ${item.store_name || "-"}<br/>
-            <small>${item.shopify_url || ""}</small>
-          </td>
-          <td><span class="badge ${item.active ? 'active' : 'inactive'}">${item.active ? 'Active' : 'Inactive'}</span></td>
-          <td>${item.created_at ? new Date(item.created_at).toLocaleString() : "-"}</td>
-          <td class="conversions">
-            ${Object.entries(item.conversions || {}).map(([k, v]) => `${k}: ${v}`).join("<br>")}
-          </td>
-          <td class="conversion-rate">${item.conversion_rate || "-"}</td>
-          <td>
-            ${item.last_event && item.last_event.event_type ? `<b>${item.last_event.event_type}</b><br>` : ""}
-            <span class="mini">${item.last_event && item.last_event.timestamp ? new Date(item.last_event.timestamp).toLocaleString() : "-"}</span>
-            ${item.last_error ? `<div class="badge inactive" style="margin-top:5px;">Last Error</div>` : ""}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-      document.getElementById("no-data").style.display = found ? "none" : "";
-      document.getElementById("last-update").innerText = "Last updated: " + (new Date()).toLocaleTimeString();
-    }
-    window.onload = loadDashboard;
-  </script>
+        <div class="steps-container">
+            <!-- STEP 1: Content Generation -->
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <div class="step-title">📝 Content Generation</div>
+                <div class="step-description">
+                    Generate AI-powered Pin titles and descriptions for your Shopify products. 
+                    Fetches products from collections and creates optimized content for Pinterest.
+                </div>
+                
+                <form method="POST" action="{{ url_for('step1_process') }}">
+                    <div class="form-group">
+                        <label for="collection_id">Select Collection:</label>
+                        <select name="collection_id" id="collection_id" required>
+                            {% if collections %}
+                                {% for collection_id, collection_name in collections %}
+                                    <option value="{{ collection_id }}">{{ collection_name }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option disabled>⚠️ No collections found</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="image_limit">Images per Product (1-10):</label>
+                        <input type="number" name="image_limit" id="image_limit" value="3" min="1" max="10" required>
+                    </div>
+
+                    <button type="submit" class="btn">Start Content Generation</button>
+                </form>
+            </div>
+
+            <!-- STEP 2: Pinterest Posting -->
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <div class="step-title">📌 Pinterest Posting</div>
+                <div class="step-description">
+                    Post generated pins to Pinterest with automatic board creation. 
+                    Handles rate limiting and updates Google Sheets with posting status.
+                </div>
+                
+                <form method="POST" action="{{ url_for('step2_process') }}">
+                    <div class="form-group">
+                        <label for="delay_between_posts">Delay Between Posts (seconds):</label>
+                        <input type="number" name="delay_between_posts" id="delay_between_posts" value="45" min="0" max="300" required>
+                        <small style="color: #6c757d; font-size: 12px;">Set to 0 for fastest posting</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max_posts">Maximum Posts (0 = no limit):</label>
+                        <input type="number" name="max_posts" id="max_posts" value="0" min="0" max="1000">
+                        <small style="color: #6c757d; font-size: 12px;">Leave as 0 to post all available pins</small>
+                    </div>
+
+                    <button type="submit" class="btn">Start Pinterest Posting</button>
+                </form>
+            </div>
+
+            <!-- STEP 3: Campaign Creation -->
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <div class="step-title">🎯 Campaign Creation</div>
+                <div class="step-description">
+                    Create Pinterest ad campaigns with targeting and budget settings. 
+                    Launch campaigns on schedule with multi-product or single-product options.
+                </div>
+                
+                <form method="POST" action="{{ url_for('step3_process') }}">
+                    <div class="form-group">
+                        <label for="campaign_type">Campaign Type:</label>
+                        <select name="campaign_type" id="campaign_type" required>
+                            <option value="WEB_CONVERSION">Web Conversion</option>
+                            <option value="CONSIDERATION">Consideration</option>
+                            <option value="CATALOG_SALES">Catalog Sales</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="campaign_mode">Campaign Mode:</label>
+                        <select name="campaign_mode" id="campaign_mode" required>
+                            <option value="single_product">Single Product</option>
+                            <option value="multi_product">Multi Product</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="products_per_campaign">Products per Campaign (2-50):</label>
+                        <input type="number" name="products_per_campaign" id="products_per_campaign" value="10" min="2" max="50" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="daily_budget">Daily Budget (cents):</label>
+                        <input type="number" name="daily_budget" id="daily_budget" value="100" min="1" required>
+                        <small style="color: #6c757d; font-size: 12px;">Enter budget in cents (100 = $1.00)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="target_language">Target Language:</label>
+                        <select name="target_language" id="target_language" required>
+                            <option value="de">German</option>
+                            <option value="en">English</option>
+                            <option value="fr">French</option>
+                            <option value="es">Spanish</option>
+                            <option value="it">Italian</option>
+                            <option value="nl">Dutch</option>
+                            <option value="pt">Portuguese</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn">Start Campaign Creation</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Status Section -->
+        <div class="status-section">
+            <div class="status-title">📊 System Status</div>
+            <div class="status-item">
+                <span class="status-label">Shopify Connection:</span>
+                <span class="status-value">{{ 'Connected' if stats.shopify_status == 'Connected' else 'Not Connected' }}</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">AI Service:</span>
+                <span class="status-value">{{ 'Connected' if stats.ai_status == 'Connected' else 'Not Connected' }}</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Google Sheets:</span>
+                <span class="status-value">{{ stats.google_sheets_status }}</span>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

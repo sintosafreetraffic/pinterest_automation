@@ -87,23 +87,39 @@ def get_or_create_board(access_token, board_name):
         "Content-Type": "application/json"
     }
 
-    # First, check if board already exists to avoid duplicate creation
+    # First, check if board already exists
     try:
         # Get user's boards to check for existing board
         boards_url = f"{BASE_URL}/boards"
         boards_response = requests.get(boards_url, headers=headers)
         
+        print(f"[DEBUG] Checking for existing board: {board_name}")
+        print(f"[DEBUG] Boards API response: {boards_response.status_code}")
+        
         if boards_response.status_code == 200:
             existing_boards = boards_response.json().get("items", [])
+            print(f"[DEBUG] Found {len(existing_boards)} existing boards")
+            
             for board in existing_boards:
-                if board.get("name") == board_name:
+                board_name_found = board.get("name", "")
+                print(f"[DEBUG] Checking board: '{board_name_found}' vs '{board_name}'")
+                if board_name_found == board_name:
                     board_id = board["id"]
                     board_cache[board_name] = board_id
                     print(f"📌 Found existing board: {board_name} (ID: {board_id})")
                     return board_id
+            
+            print(f"[DEBUG] Board '{board_name}' not found in existing boards, will create new one")
+        else:
+            print(f"[DEBUG] Boards API failed: {boards_response.status_code} - {boards_response.text}")
+            print(f"[DEBUG] Will attempt to create board anyway")
     except Exception as e:
         print(f"⚠️ Could not check existing boards: {e}")
+        print(f"[DEBUG] Will attempt to create board anyway")
 
+    # Board doesn't exist, create it
+    print(f"[DEBUG] Creating new board: {board_name}")
+    
     # Add rate limiting delay
     import time
     time.sleep(1)  # 1 second delay between Pinterest API calls
@@ -114,10 +130,12 @@ def get_or_create_board(access_token, board_name):
     }
 
     r = requests.post(CREATE_BOARD_URL, headers=headers, json=payload)
+    print(f"[DEBUG] Board creation response: {r.status_code} - {r.text}")
+    
     if r.status_code == 201:
         board_id = r.json()["id"]
         board_cache[board_name] = board_id
-        print(f"📌 Created board: {board_name}")
+        print(f"📌 Created new board: {board_name}")
         return board_id
     elif r.status_code == 429:  # Rate limit exceeded
         print(f"⚠️ Rate limit exceeded for board creation. Waiting 60 seconds...")
@@ -129,6 +147,23 @@ def get_or_create_board(access_token, board_name):
             board_cache[board_name] = board_id
             print(f"📌 Created board after retry: {board_name}")
             return board_id
+    elif r.status_code == 400:  # Bad request - might be duplicate board
+        try:
+            error_data = r.json()
+            if error_data.get("code") == 58 and "already have a board with this name" in error_data.get("message", ""):
+                print(f"⚠️ Board '{board_name}' already exists (creation failed). Finding it...")
+                # Try to find the existing board again
+                boards_response = requests.get(f"{BASE_URL}/boards", headers=headers)
+                if boards_response.status_code == 200:
+                    existing_boards = boards_response.json().get("items", [])
+                    for board in existing_boards:
+                        if board.get("name") == board_name:
+                            board_id = board["id"]
+                            board_cache[board_name] = board_id
+                            print(f"📌 Found existing board after creation failed: {board_name} (ID: {board_id})")
+                            return board_id
+        except Exception as e:
+            print(f"⚠️ Could not parse error response: {e}")
     else:
         print(f"❌ Failed to create board '{board_name}': {r.text}")
         return None
