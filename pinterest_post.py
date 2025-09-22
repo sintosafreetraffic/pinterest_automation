@@ -171,7 +171,9 @@ def get_all_boards(access_token):
             print(f"[DEBUG] *** Stripped match: {board_name.strip() == 'Outfit Inspirationen'}")
             print(f"[DEBUG] *** Repr: {repr(board_name)}")
     
+    print(f"[DEBUG] Setting all_boards_cache to {len(all_boards)} boards")
     all_boards_cache = all_boards
+    print(f"[DEBUG] Cache set successfully. Cache now has {len(all_boards_cache) if all_boards_cache else 0} boards")
     return all_boards
 
 def search_board_by_name(access_token, board_name):
@@ -235,6 +237,8 @@ def get_or_create_board(access_token, board_name):
         # Search through cached boards
         print(f"[DEBUG] Searching for board: '{board_name}' (length: {len(board_name)})")
         print(f"[DEBUG] Target board repr: {repr(board_name)}")
+        print(f"[DEBUG] Cache has {len(all_boards) if all_boards else 0} boards")
+        print(f"[DEBUG] Global cache has {len(all_boards_cache) if all_boards_cache else 0} boards")
         for board in all_boards:
             board_name_found = board.get("name", "")
             print(f"[DEBUG] Checking: '{board_name_found}' vs '{board_name}'")
