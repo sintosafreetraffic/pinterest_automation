@@ -69,11 +69,22 @@ def get_data(sheet_service):
     return values
 
 
-def update_sheet(sheet_service, row_index, board_id):
+def update_sheet(sheet_service, row_index, board_id, pin_id=None):
+    # Update Status (L), Board ID (M), and Pin ID (N) columns
+    values = ["POSTED", board_id]
+    if pin_id:
+        values.append(pin_id)
+    
     body = {
-        "values": [["POSTED", board_id]]
+        "values": [values]
     }
-    range_ = f"Sheet1!L{row_index + 1}:M{row_index + 1}"  # Status = column L, Board ID = column M
+    
+    # Determine the range based on whether we have a Pin ID
+    if pin_id:
+        range_ = f"Sheet1!L{row_index + 1}:N{row_index + 1}"  # Status, Board ID, Pin ID
+    else:
+        range_ = f"Sheet1!L{row_index + 1}:M{row_index + 1}"  # Status, Board ID only
+    
     sheet_service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
         range=range_,
@@ -335,16 +346,28 @@ def post_pin(access_token, board_id, image_url, title, description, destination_
 
     r = requests.post(PIN_CREATE_URL, headers=headers, json=payload)
     if r.status_code == 201:
-        print(f"✅ Posted pin: {title}")
-        return True
+        try:
+            pin_data = r.json()
+            pin_id = pin_data.get("id", "")
+            print(f"✅ Posted pin: {title} (Pin ID: {pin_id})")
+            return pin_id  # Return the Pin ID instead of True
+        except Exception as e:
+            print(f"⚠️ Posted pin but couldn't extract Pin ID: {e}")
+            return True  # Fallback to True
     elif r.status_code == 429:  # Rate limit exceeded
         print(f"⚠️ Rate limit exceeded for pin creation. Waiting 60 seconds...")
         time.sleep(60)
         # Retry once after waiting
         r = requests.post(PIN_CREATE_URL, headers=headers, json=payload)
         if r.status_code == 201:
-            print(f"✅ Posted pin after retry: {title}")
-            return True
+            try:
+                pin_data = r.json()
+                pin_id = pin_data.get("id", "")
+                print(f"✅ Posted pin after retry: {title} (Pin ID: {pin_id})")
+                return pin_id  # Return the Pin ID instead of True
+            except Exception as e:
+                print(f"⚠️ Posted pin after retry but couldn't extract Pin ID: {e}")
+                return True  # Fallback to True
     else:
         print(f"❌ Failed to post pin '{title}': {r.status_code} - {r.text}")
         return False
@@ -377,8 +400,13 @@ def main():
             continue
 
         board_id = row_data["Board ID"] or get_or_create_board(access_token, board_name)
-        if board_id and post_pin(access_token, board_id, image_url, pin_title, pin_description, product_url):
-            update_sheet(sheet_service, i + 1, board_id)
+        if board_id:
+            pin_result = post_pin(access_token, board_id, image_url, pin_title, pin_description, product_url)
+            if pin_result:  # pin_result is either Pin ID (string) or True/False
+                if isinstance(pin_result, str):  # It's a Pin ID
+                    update_sheet(sheet_service, i + 1, board_id, pin_result)
+                else:  # It's True (fallback case)
+                    update_sheet(sheet_service, i + 1, board_id)
 
 if __name__ == "__main__":
     main()
