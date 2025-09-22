@@ -14,7 +14,7 @@ SPREADSHEET_ID = os.getenv("SHEET_ID")
 HEADERS = [
     "Image URL", "Product Name", "Product URL", "Product Price", "Product Type", "Collection Name",
     "Tags", "Review Summary", "Generated Pin Title", "Generated Pin Description", "Board Title", 
-    "Status", "Board ID", "Pin ID", "Ad Campaign Status", "Advertised At"
+    "Status", "Board ID", "Pin ID", "Status2", "Ad Campaign ID", "Advertised At"
 ]
 
 # Cache for sheet data
@@ -126,12 +126,12 @@ def load_pins_from_sheet():
                 print(f"⚠️ Row {row_idx + 2}: No Pin ID")
             continue
         
-        # Check if campaign is already created (Ad Campaign Status should not be "ACTIVE")
-        ad_campaign_status = row_data.get("Ad Campaign Status", "").strip().upper()
-        if ad_campaign_status == "ACTIVE":
+        # Check if campaign is already created (Status2 should not be "ACTIVE")
+        campaign_status = row_data.get("Status2", "").strip().upper()
+        if campaign_status == "ACTIVE":
             skipped_reasons["campaign_already_created"] = skipped_reasons.get("campaign_already_created", 0) + 1
             if row_idx < 5:
-                print(f"⚠️ Row {row_idx + 2}: Campaign already created (Ad Campaign Status: {ad_campaign_status})")
+                print(f"⚠️ Row {row_idx + 2}: Campaign already created (Status2: {campaign_status})")
             continue
         
         product_name = row_data.get("Product Name", "").strip()

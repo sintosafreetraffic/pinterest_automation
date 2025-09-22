@@ -70,7 +70,7 @@ def get_data(sheet_service):
 
 
 def update_sheet(sheet_service, row_index, board_id, pin_id=None):
-    # Update Status (L), Board ID (M), and Pin ID (N) columns
+    # Update Status (K), Board ID (L), and Pin ID (N) columns
     values = ["POSTED", board_id]
     if pin_id:
         values.append(pin_id)
@@ -81,9 +81,9 @@ def update_sheet(sheet_service, row_index, board_id, pin_id=None):
     
     # Determine the range based on whether we have a Pin ID
     if pin_id:
-        range_ = f"Sheet1!L{row_index + 1}:N{row_index + 1}"  # Status, Board ID, Pin ID
+        range_ = f"Sheet1!K{row_index + 1}:N{row_index + 1}"  # Status, Board ID, Pin ID
     else:
-        range_ = f"Sheet1!L{row_index + 1}:M{row_index + 1}"  # Status, Board ID only
+        range_ = f"Sheet1!K{row_index + 1}:L{row_index + 1}"  # Status, Board ID only
     
     sheet_service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
