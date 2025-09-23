@@ -14,7 +14,7 @@ SPREADSHEET_ID = os.getenv("SHEET_ID")
 HEADERS = [
     "Image URL", "Product Name", "Product URL", "Product Price", "Product Type", "Collection Name",
     "Tags", "Review Summary", "Generated Pin Title", "Generated Pin Description", "Board Title", 
-    "Status", "Board ID", "Pin ID", "Status2", "Ad Campaign ID", "Advertised At"
+    "Status", "Board ID", "Pin ID", "Ad Campaign Status", "Ad Campaign ID", "Advertised At"
 ]
 
 # Cache for sheet data

@@ -1746,9 +1746,12 @@ def run(campaign_mode="single_product", products_per_campaign=1, daily_budget=10
                 ad_name = f"{product_name} - Pin {i+1} Ad"
                 ad_id = create_ad(access_token, ad_account_id, ad_group_id, pin_id, ad_name)
                 if ad_id:
+                    from datetime import datetime
+                    today = datetime.now().strftime('%Y-%m-%d')
                     pin_updates[pin_id] = {
                         'Ad Campaign Status': 'ACTIVE',
-                        'Advertised At': campaign_id  # Using Advertised At column for campaign ID
+                        'Ad Campaign ID': campaign_id,
+                        'Advertised At': today
                     }
                     # Track pin for second sheet processing
                     campaign_tracking[product_name]['pins'].append(pin_id)
@@ -1786,9 +1789,12 @@ def run(campaign_mode="single_product", products_per_campaign=1, daily_budget=10
                     ad_name = f"{product_name} - Pin {j+1} Ad"
                     ad_id = create_ad(access_token, ad_account_id, ad_group_id, pin_id, ad_name)
                     if ad_id:
+                        from datetime import datetime
+                        today = datetime.now().strftime('%Y-%m-%d')
                         pin_updates[pin_id] = {
                             'Ad Campaign Status': 'ACTIVE',
-                            'Advertised At': campaign_id  # Using Advertised At column for campaign ID
+                            'Ad Campaign ID': campaign_id,
+                            'Advertised At': today
                         }
                         print(f"   ✅ Successfully created ad {ad_id} for pin {pin_id}")
                     else:
@@ -1942,9 +1948,12 @@ def run(campaign_mode="single_product", products_per_campaign=1, daily_budget=10
                                 
                                 if ad_id:
                                     print(f"   ✅ Successfully created ad {ad_id} for additional pin {new_pin_id}")
+                                    from datetime import datetime
+                                    today = datetime.now().strftime('%Y-%m-%d')
                                     pin_updates[new_pin_id] = {
                                         'Ad Campaign Status': 'ACTIVE',
-                                        'Advertised At': campaign_id  # Using Advertised At column for campaign ID
+                                        'Ad Campaign ID': campaign_id,
+                                        'Advertised At': today
                                     }
                                     # Track the new pin
                                     campaign_tracking[product_name]['pins'].append(new_pin_id)
