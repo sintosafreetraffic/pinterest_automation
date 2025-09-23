@@ -1577,10 +1577,16 @@ def run_step3_campaign_creation(campaign_mode="single_product", products_per_cam
         
         # Import and run the campaign creation
         import a
-        a.run(campaign_mode=campaign_mode, products_per_campaign=products_per_campaign, daily_budget=daily_budget, campaign_type=campaign_type, target_language=target_language, enable_second_sheet=enable_second_sheet, second_sheet_id=second_sheet_id, campaign_start_date=campaign_start_date, custom_start_date=custom_start_date)
+        result = a.run(campaign_mode=campaign_mode, products_per_campaign=products_per_campaign, daily_budget=daily_budget, campaign_type=campaign_type, target_language=target_language, enable_second_sheet=enable_second_sheet, second_sheet_id=second_sheet_id, campaign_start_date=campaign_start_date, custom_start_date=custom_start_date)
         
-        print(f"\n--- Step 3 Completed: Campaign Creation ---")
-        update_automation_status('completed', 'Step 3: Campaign creation completed successfully!')
+        if result == "NO_ELIGIBLE_PINS":
+            print(f"\n--- Step 3 Completed: No eligible pins found - automation run complete ---")
+            update_automation_status('completed', 'Step 3: No eligible pins found - automation run complete!')
+            return "NO_ELIGIBLE_PINS"
+        else:
+            print(f"\n--- Step 3 Completed: Campaign Creation ---")
+            update_automation_status('completed', 'Step 3: Campaign creation completed successfully!')
+            return True
         
     except Exception as e:
         error_msg = f"Step 3 failed: {str(e)}"

@@ -101,7 +101,7 @@ def run_automation_workflow():
                 return False
             
             logger.info(f"✅ Using second sheet ID: {second_sheet_id}")
-            campaigns_success = run_step3_campaign_creation(
+            campaigns_result = run_step3_campaign_creation(
                 campaign_mode="multi_product",
                 products_per_campaign=10,
                 daily_budget=1000,  # 10 euro in cents
@@ -112,7 +112,12 @@ def run_automation_workflow():
                 campaign_start_date="next_tuesday",
                 custom_start_date=""
             )
-            if campaigns_success:
+            if campaigns_result == "NO_ELIGIBLE_PINS":
+                logger.info("✅ AUTOMATION RUN COMPLETE: No eligible pins found for advertising")
+                logger.info("🔄 All available content has been processed - waiting for next cron job run")
+                logger.info("⏰ Next run scheduled for: 5 AM and 5 PM UTC daily")
+                return True
+            elif campaigns_result:
                 logger.info("✅ Step 4 completed: Pinterest campaigns created (10 products, 10 euro budget)")
             else:
                 logger.warning("⚠️ Step 4: Campaign creation failed")

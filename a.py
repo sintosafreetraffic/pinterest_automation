@@ -1685,7 +1685,8 @@ def run(campaign_mode="single_product", products_per_campaign=1, daily_budget=10
     pins_by_product = load_pins_from_sheet()
     if not pins_by_product:
         print("⚠️ No eligible pins found for advertising.")
-        return
+        print("✅ AUTOMATION RUN COMPLETE: All available content has been processed")
+        return "NO_ELIGIBLE_PINS"
 
     print(f"[INFO] Found {sum(len(v) for v in pins_by_product.values())} eligible pins across {len(pins_by_product)} products.")
 
