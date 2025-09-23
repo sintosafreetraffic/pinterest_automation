@@ -89,11 +89,11 @@ def run_automation_workflow():
         except Exception as e:
             logger.warning(f"⚠️ Step 3 failed: {e}. Continuing to campaign creation...")
         
-        # Step 4: Create Pinterest campaigns (multi-product, 10 euro budget)
-        logger.info("🎯 Step 4: Creating Pinterest campaigns (multi-product, 10 euro budget)...")
+        # Step 4: Create Pinterest campaigns (multi-product, 10 products per campaign, 10 euro budget)
+        logger.info("🎯 Step 4: Creating Pinterest campaigns (multi-product, 10 products per campaign, 10 euro budget)...")
         try:
             from forefront import run_step3_campaign_creation
-            # Configure for multi-product campaigns: 10 products, 10 euro budget
+            # Configure for multi-product campaigns: 10 products per campaign, 10 euro budget
             second_sheet_id = os.getenv("SECOND_SHEET_ID")
             if not second_sheet_id:
                 logger.error("❌ CRITICAL ERROR: SECOND_SHEET_ID environment variable is required for multi-product campaigns!")

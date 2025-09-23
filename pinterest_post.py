@@ -330,7 +330,8 @@ def post_pin(access_token, board_id, image_url, title, description, destination_
         "media_source": {
             "source_type": "image_url",
             "url": image_url
-        }
+        },
+        "call_to_action": "ON_SALE"
     }
     
     # Add destination URL (link) if provided

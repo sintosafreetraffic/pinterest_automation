@@ -126,12 +126,12 @@ def load_pins_from_sheet():
                 print(f"⚠️ Row {row_idx + 2}: No Pin ID")
             continue
         
-        # Check if campaign is already created (Status2 should not be "ACTIVE")
-        campaign_status = row_data.get("Status2", "").strip().upper()
+        # Check if campaign is already created (Ad Campaign Status should not be "ACTIVE")
+        campaign_status = row_data.get("Ad Campaign Status", "").strip().upper()
         if campaign_status == "ACTIVE":
             skipped_reasons["campaign_already_created"] = skipped_reasons.get("campaign_already_created", 0) + 1
             if row_idx < 5:
-                print(f"⚠️ Row {row_idx + 2}: Campaign already created (Status2: {campaign_status})")
+                print(f"⚠️ Row {row_idx + 2}: Campaign already created (Ad Campaign Status: {campaign_status})")
             continue
         
         product_name = row_data.get("Product Name", "").strip()
