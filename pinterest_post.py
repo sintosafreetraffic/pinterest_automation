@@ -355,19 +355,9 @@ def post_pin(access_token, board_id, image_url, title, description, destination_
             print(f"⚠️ Posted pin but couldn't extract Pin ID: {e}")
             return True  # Fallback to True
     elif r.status_code == 429:  # Rate limit exceeded
-        print(f"⚠️ Rate limit exceeded for pin creation. Waiting 60 seconds...")
-        time.sleep(60)
-        # Retry once after waiting
-        r = requests.post(PIN_CREATE_URL, headers=headers, json=payload)
-        if r.status_code == 201:
-            try:
-                pin_data = r.json()
-                pin_id = pin_data.get("id", "")
-                print(f"✅ Posted pin after retry: {title} (Pin ID: {pin_id})")
-                return pin_id  # Return the Pin ID instead of True
-            except Exception as e:
-                print(f"⚠️ Posted pin after retry but couldn't extract Pin ID: {e}")
-                return True  # Fallback to True
+        print(f"⚠️ Rate limit exceeded for pin creation. Skipping to next step...")
+        print(f"🔄 Pinterest anti-spam detected - moving to campaign creation")
+        return "RATE_LIMITED"  # Special return value to indicate rate limiting
     else:
         print(f"❌ Failed to post pin '{title}': {r.status_code} - {r.text}")
         return False
@@ -402,7 +392,10 @@ def main():
         board_id = row_data["Board ID"] or get_or_create_board(access_token, board_name)
         if board_id:
             pin_result = post_pin(access_token, board_id, image_url, pin_title, pin_description, product_url)
-            if pin_result:  # pin_result is either Pin ID (string) or True/False
+            if pin_result == "RATE_LIMITED":
+                print(f"🔄 Rate limiting detected - stopping Pinterest posting and moving to campaign creation")
+                break  # Exit the loop and move to next step
+            elif pin_result:  # pin_result is either Pin ID (string) or True/False
                 if isinstance(pin_result, str):  # It's a Pin ID
                     update_sheet(sheet_service, i + 1, board_id, pin_result)
                 else:  # It's True (fallback case)
