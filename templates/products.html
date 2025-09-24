@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products Browser - Pinterest Feed Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <a href="/" class="mr-4">
+                        <i class="fas fa-arrow-left text-xl"></i>
+                    </a>
+                    <i class="fab fa-pinterest text-3xl mr-3"></i>
+                    <h1 class="text-2xl font-bold">Products Browser</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="productCount" class="text-lg font-semibold">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Search and Filters -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Search products..." 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <select id="perPageSelect" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="25">25 per page</option>
+                        <option value="50" selected>50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                    <button onclick="loadProducts()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-search mr-2"></i>Search
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div id="productsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Products will be loaded here -->
+        </div>
+
+        <!-- Pagination -->
+        <div id="paginationContainer" class="flex justify-center">
+            <!-- Pagination will be loaded here -->
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg p-6 text-center">
+                <i class="fas fa-spinner fa-spin text-3xl text-blue-600 mb-4"></i>
+                <p class="text-lg font-semibold">Loading products...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-bold">Product Details</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="productDetails">
+                <!-- Product details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentSearch = '';
+        let currentPerPage = 50;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+            
+            // Search input event
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loadProducts();
+                }
+            });
+            
+            // Per page change event
+            document.getElementById('perPageSelect').addEventListener('change', function() {
+                currentPerPage = parseInt(this.value);
+                currentPage = 1;
+                loadProducts();
+            });
+        });
+
+        // Load products
+        async function loadProducts() {
+            showLoading();
+            
+            try {
+                currentSearch = document.getElementById('searchInput').value;
+                const response = await fetch(`/api/products?page=${currentPage}&per_page=${currentPerPage}&search=${encodeURIComponent(currentSearch)}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayProducts(data.products);
+                    displayPagination(data);
+                    document.getElementById('productCount').textContent = `${data.total} products found`;
+                } else {
+                    showError('Error loading products: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error loading products');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display products
+        function displayProducts(products) {
+            const container = document.getElementById('productsContainer');
+            
+            if (products.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+                        <p class="text-gray-500 text-lg">No products found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = products.map(product => `
+                <div class="bg-white rounded-lg shadow-md overflow-hidden card-hover cursor-pointer" onclick="showProductDetails('${product.id}')">
+                    <div class="aspect-w-16 aspect-h-12 bg-gray-200">
+                        <img src="${product.image_link || '/static/no-image.png'}" 
+                             alt="${product.title}" 
+                             class="w-full h-48 object-cover"
+                             onerror="this.src='/static/no-image.png'">
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2">${product.title}</h3>
+                        <div class="space-y-1 text-sm text-gray-600">
+                            <div class="flex justify-between">
+                                <span>Price:</span>
+                                <span class="font-semibold text-green-600">${product.price} ${product.currency}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Brand:</span>
+                                <span>${product.brand || 'N/A'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Availability:</span>
+                                <span class="${product.availability === 'in stock' ? 'text-green-600' : 'text-red-600'}">
+                                    ${product.availability}
+                                </span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Category:</span>
+                                <span class="text-xs">${product.google_product_category || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Display pagination
+        function displayPagination(data) {
+            const container = document.getElementById('paginationContainer');
+            const totalPages = data.pages;
+            
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let paginationHTML = '<div class="flex space-x-2">';
+            
+            // Previous button
+            if (currentPage > 1) {
+                paginationHTML += `
+                    <button onclick="changePage(${currentPage - 1})" 
+                            class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                `;
+            }
+            
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `
+                    <button onclick="changePage(${i})" 
+                            class="px-3 py-2 rounded-lg transition ${i === currentPage ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}">
+                        ${i}
+                    </button>
+                `;
+            }
+            
+            // Next button
+            if (currentPage < totalPages) {
+                paginationHTML += `
+                    <button onclick="changePage(${currentPage + 1})" 
+                            class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                `;
+            }
+            
+            paginationHTML += '</div>';
+            container.innerHTML = paginationHTML;
+        }
+
+        // Change page
+        function changePage(page) {
+            currentPage = page;
+            loadProducts();
+        }
+
+        // Show product details
+        async function showProductDetails(productId) {
+            try {
+                const response = await fetch(`/api/products?search=${productId}&per_page=1`);
+                const data = await response.json();
+                
+                if (response.ok && data.products.length > 0) {
+                    const product = data.products[0];
+                    displayProductModal(product);
+                } else {
+                    showError('Product not found');
+                }
+            } catch (error) {
+                showError('Error loading product details');
+            }
+        }
+
+        // Display product modal
+        function displayProductModal(product) {
+            const container = document.getElementById('productDetails');
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-start space-x-4">
+                        <img src="${product.image_link || '/static/no-image.png'}" 
+                             alt="${product.title}" 
+                             class="w-32 h-32 object-cover rounded-lg"
+                             onerror="this.src='/static/no-image.png'">
+                        <div class="flex-1">
+                            <h4 class="text-lg font-semibold mb-2">${product.title}</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Price:</span>
+                                    <span class="text-green-600 font-semibold">${product.price} ${product.currency}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Brand:</span>
+                                    <span>${product.brand || 'N/A'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Availability:</span>
+                                    <span class="${product.availability === 'in stock' ? 'text-green-600' : 'text-red-600'}">
+                                        ${product.availability}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">SKU:</span>
+                                    <span>${product.sku || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h5 class="font-semibold mb-2">Description</h5>
+                        <p class="text-gray-700 text-sm">${product.description || 'No description available'}</p>
+                    </div>
+                    
+                    <div>
+                        <h5 class="font-semibold mb-2">Product Details</h5>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="font-medium">Category:</span>
+                                <p class="text-gray-700">${product.google_product_category || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span class="font-medium">Product Type:</span>
+                                <p class="text-gray-700">${product.product_type || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span class="font-medium">Condition:</span>
+                                <p class="text-gray-700">${product.condition || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span class="font-medium">Tags:</span>
+                                <p class="text-gray-700">${product.tags || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h5 class="font-semibold mb-2">Links</h5>
+                        <div class="space-y-2">
+                            <div>
+                                <span class="font-medium text-sm">Product URL:</span>
+                                <a href="${product.link}" target="_blank" class="block text-blue-600 hover:underline text-sm break-all">
+                                    ${product.link}
+                                </a>
+                            </div>
+                            <div>
+                                <span class="font-medium text-sm">Image URL:</span>
+                                <a href="${product.image_link}" target="_blank" class="block text-blue-600 hover:underline text-sm break-all">
+                                    ${product.image_link}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('productModal').classList.add('hidden');
+        }
+
+        // Show loading
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        // Hide loading
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // Show error
+        function showError(message) {
+            alert(message); // Simple error display
+        }
+    </script>
+</body>
+</html>

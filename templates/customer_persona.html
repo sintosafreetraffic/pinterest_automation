@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Persona - Pinterest Insights</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .persona-card { background: #f8f9fa; padding: 20px; margin: 15px 0; border-radius: 6px; border-left: 4px solid #28a745; }
+        .insight-item { background: white; padding: 15px; margin: 10px 0; border-radius: 4px; border: 1px solid #e9ecef; }
+        .nav { text-align: center; margin: 20px 0; }
+        .nav a { margin: 0 10px; color: #007bff; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        .tag { display: inline-block; background: #007bff; color: white; padding: 4px 8px; margin: 2px; border-radius: 12px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👤 Customer Persona Insights</h1>
+            <p>AI-generated customer personas based on Pinterest audience data</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/">🏠 Home</a>
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/enhanced_features">⚙️ Enhanced Features</a>
+            <a href="/trending_keywords">📈 Trending Keywords</a>
+        </div>
+        
+        {% if persona_data %}
+        <div class="persona-card">
+            <h2>🎯 {{ persona_data.persona_name }}</h2>
+            <p><strong>Generated:</strong> {{ persona_data.generated_at }}</p>
+        </div>
+        
+        <div class="insight-item">
+            <h3>👥 Demographics</h3>
+            <p><strong>Ages:</strong> 
+                {% for age in persona_data.demographics.ages %}
+                    <span class="tag">{{ age }}</span>
+                {% endfor %}
+            </p>
+            <p><strong>Genders:</strong> 
+                {% for gender in persona_data.demographics.genders %}
+                    <span class="tag">{{ gender }}</span>
+                {% endfor %}
+            </p>
+            <p><strong>Interests:</strong> 
+                {% for interest in persona_data.demographics.interests %}
+                    <span class="tag">{{ interest }}</span>
+                {% endfor %}
+            </p>
+        </div>
+        
+        <div class="insight-item">
+            <h3>📊 Behavior Patterns</h3>
+            <p><strong>Top Categories:</strong> 
+                {% for category in persona_data.behavior.top_categories %}
+                    <span class="tag">{{ category }}</span>
+                {% endfor %}
+            </p>
+            <p><strong>Engagement Patterns:</strong> 
+                {% for pattern in persona_data.behavior.engagement_patterns %}
+                    <span class="tag">{{ pattern }}</span>
+                {% endfor %}
+            </p>
+        </div>
+        
+        <div class="insight-item">
+            <h3>🎯 Target Keywords</h3>
+            <p>
+                {% for keyword in persona_data.target_keywords %}
+                    <span class="tag">{{ keyword }}</span>
+                {% endfor %}
+            </p>
+        </div>
+        
+        {% else %}
+        <div class="persona-card">
+            <h2>⚠️ No Persona Data Available</h2>
+            <p>Customer persona data is not available. This could be due to:</p>
+            <ul>
+                <li>Pinterest API connection issues</li>
+                <li>No audience insights data</li>
+                <li>Enhanced features disabled</li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

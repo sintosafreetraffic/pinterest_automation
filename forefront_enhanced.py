@@ -18,6 +18,24 @@ import concurrent.futures
 from collections import defaultdict
 from google.oauth2.service_account import Credentials
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+
+# Enhanced Pinterest integration imports
+import sys
+import os
+
+# Add the meta-change directory to the path for our integration modules
+meta_change_path = '/Users/saschavanwell/Documents/meta-change'
+sys.path.append(meta_change_path)
+
+try:
+    from pin_generation_enhancement import PinGenerationEnhancement
+    print("✅ Enhanced Pinterest integration modules loaded")
+    ENHANCED_FEATURES_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Could not load enhanced integration modules: {e}")
+    PinGenerationEnhancement = None
+    ENHANCED_FEATURES_AVAILABLE = False
+
 # Import Pinterest posting functionality
 from pinterest_post import post_pin, get_or_create_board, get_access_token
 
@@ -91,10 +109,21 @@ if not os.path.exists(CREDENTIALS_FILE):
 try:
     creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scope)
     google_sheets_client = gspread.authorize(creds) # Renamed client to avoid conflict
-    print("✅ Google credentials authorized.")
 except Exception as e:
-    print(f"❌ Google Credentials Error: {e}")
-    sys.exit(f"Exiting: Failed to authorize Google credentials - {e}")
+    print(f"❌ Error authenticating with Google Sheets: {e}")
+    sys.exit("Exiting: Google Sheets authentication failed.")
+
+# Initialize enhanced integration
+enhanced_pin_generation = None
+if ENHANCED_FEATURES_AVAILABLE and PinGenerationEnhancement:
+    try:
+        enhanced_pin_generation = PinGenerationEnhancement()
+        print("✅ Enhanced pin generation initialized")
+    except Exception as e:
+        print(f"⚠️ Error initializing enhanced pin generation: {e}")
+        enhanced_pin_generation = None
+
+print("✅ Google credentials authorized.")
 
 
 # ✅ Connect to Google Sheets
@@ -117,6 +146,13 @@ except Exception as e:
 
 # 🔥 Flask Setup
 app = Flask(__name__, template_folder="templates", static_folder="static")
+
+# Enhanced features configuration
+ENHANCED_FEATURES_ENABLED = True  # Set to False to disable enhanced features
+TRENDING_KEYWORDS_ENABLED = True  # Set to False to disable trending keywords
+AUDIENCE_INSIGHTS_ENABLED = True  # Set to False to disable audience insights
+DEFAULT_REGION = "DE"  # Default region for trending keywords
+
 app.secret_key = os.urandom(24) # Good for session security
 app.config["UPLOAD_FOLDER"] = "static/uploads"
 app.config["TEMPLATES_AUTO_RELOAD"] = True # Useful for development
@@ -491,123 +527,26 @@ def retry_on_rate_limit(func):
 @retry_on_rate_limit
 def generate_single_pin_title(data):
     """
-    Generate a Pinterest Pin Title using DeepSeek.
-    Output is always short, catchy, and optimized for clicks (German).
+    Generate a Pinterest Pin Title using DeepSeek with optional trending keywords integration.
     """
-    try:
-        # Adjust these indices to your columns!
-        # data = [
-        #   0: Image URL, 1: Product Name, 2: Product URL, 3: Product Price,
-        #   4: Product Type, 5: Collection Name, 6: Tags, 7: Review Summary,
-        #   8: Product ID, 9: Product Description, 10: Generated Pin Title, etc.
-        # ]
-        product_name  = data[1]
-        product_price = data[3]
-        product_type  = data[4]
-        tags          = data[6]
-        product_description = data[9] if len(data) > 9 else ""  # Product description
-        clean_product_name = str(product_name).replace("_", " ")
-        price = str(product_price)
-        category = str(product_type)
-        tags_str = str(tags)
-        description_text = str(product_description)
-    except (IndexError, TypeError) as e:
-        print(f"⚠️ Error unpacking data for title generation: {e}. Data: {data}")
-        return "Tolles Produkt – Jetzt entdecken!"
-    
-    # Extract meaningful product terms for SEO (focus on product features, not brand/prepositions)
-    import re
-    # Remove brand prefix and focus on product description
-    product_terms = re.sub(r'^[^|]*\|?\s*', '', clean_product_name).strip()  # Remove brand prefix
-    product_terms = re.sub(r'[^\w\s]', ' ', product_terms).strip()  # Clean special chars
-    
-    # Filter out meaningless words and keep only substantial product terms
-    meaningful_words = []
-    skip_words = {'à', 'de', 'du', 'des', 'le', 'la', 'les', 'un', 'une', 'avec', 'pour', 'sur', 'dans', 'par', 'et', 'ou', 'mais', 'donc', 'or', 'ni', 'car', 'que', 'qui', 'quoi', 'dont', 'où', 'température', 'temperature', 'réglable', 'reglable'}
-    
-    for word in product_terms.split():
-        word_lower = word.lower()
-        if len(word) > 3 and word_lower not in skip_words and word.isalpha():
-            meaningful_words.append(word)
-    
-    key_terms = ' '.join(meaningful_words)
-    
-    print(f"   DEBUG: Product name: '{clean_product_name}' -> Key terms: '{key_terms}'")
-    
-    # Get seasonal context for Germany
-    seasonal_context, current_season = get_seasonal_context_germany()
-    
-    prompt = (
-        "Du bist ein erfahrener, deutschsprachiger Pinterest-Copywriter für virale E-Commerce-Produkte.\n"
-        "Schreibe einen einzigartigen, extrem klickstarken Pin-Titel für Pinterest, max. 60 Zeichen (keine Zeichen-Anzahl im Text!).\n"
-        "WICHTIG: Verwende die Produktbegriffe aus dem Produktnamen für bessere SEO (z.B. bei 'Linen Sweater' verwende 'Linen' und 'Sweater').\n"
-        "Der Titel MUSS mindestens einen der Produktbegriffe enthalten!\n"
-        "Der Titel soll sofort Aufmerksamkeit erregen, neugierig machen oder einen Nutzen/Lifestyle vermitteln. "
-        "Verwende maximal EIN passendes Emoji (am besten am Anfang oder Ende, kein Zwang). "
-        "Keine Anführungszeichen, keine Listen, keine Nummerierungen, keine Meta-Angaben (z.B. 'Pin-Titel:').\n"
-        "Text soll modern, emotional, anregend, kreativ und auf die Zielgruppe zugeschnitten sein. Keine offensichtlichen 'Werbetexte', sondern echte Value-Kommunikation.\n"
-        "Gib ausschließlich den fertigen Pin-Titel zurück, keine Kommentare, kein Zusatztext.\n\n"
-        f"Produkt: {clean_product_name}\n"
-        f"Produktbegriffe (für SEO verwenden): {key_terms}\n"
-        f"Preis: {price} €\n"
-        f"Kategorie: {category}\n"
-        f"Tags: {tags_str}\n"
-        f"Produktbeschreibung: {description_text}\n"
-        f"AKTUELLE SAISON (Deutschland): {current_season} {datetime.datetime.now().year}\n"
-        f"SAISONALER KONTEXT: {seasonal_context}\n"
-        "WICHTIG: Berücksichtige die aktuelle Saison in Deutschland! "
-        "Vermeide saisonal unpassende Begriffe (z.B. keine Sommer-Begriffe im Spätsommer/Herbst, "
-        "keine Winter-Begriffe im Spätwinter/Frühling).\n\n"
-        "Gib nur den Pin-Titel zurück. Keine weiteren Erklärungen oder Begrenzungen."
-    )
-
-    pin_title = call_deepseek_api(
-        prompt,
-        DEEPSEEK_API_KEY,
-        model="deepseek-chat",
-        max_tokens=30,
-        temperature=0.7
-    )
-
-    # Clean: Remove numbering, stray markdown, quotes, trim whitespace
-    pin_title = re.sub(r"^[\d\*\-\.]+\s*", "", str(pin_title)).replace('"', '').strip()
-
-    # Ensure product terms are included (force inclusion if missing)
-    print(f"   DEBUG: Checking title '{pin_title}' for key terms: {key_terms}")
-    if key_terms and not any(term.lower() in pin_title.lower() for term in key_terms.split()):
-        # Add the first key term to the title
-        first_term = key_terms.split()[0]
-        pin_title = f"{first_term} {pin_title}"
-        print(f"   ✅ FORCED: Added missing product term '{first_term}' to title")
-        
-        # If still no product terms, add a second one
-        if len(key_terms.split()) > 1 and not any(term.lower() in pin_title.lower() for term in key_terms.split()[1:]):
-            second_term = key_terms.split()[1]
-            pin_title = f"{second_term} {pin_title}"
-            print(f"   ✅ FORCED: Added second product term '{second_term}' to title")
+    if ENHANCED_FEATURES_ENABLED and TRENDING_KEYWORDS_ENABLED and enhanced_pin_generation:
+        try:
+            print("🎯 Using enhanced pin title generation with trending keywords...")
+            return enhanced_pin_generation.generate_enhanced_pin_title(
+                data, use_trending_keywords=True, region=DEFAULT_REGION
+            )
+        except Exception as e:
+            print(f"⚠️ Enhanced title generation failed, using fallback: {e}")
+            # Fallback to original function
+            return generate_single_pin_title_original(data)
     else:
-        print(f"   ✅ Title already contains product terms")
-    
-    # ALWAYS ensure at least one product term is in the title (aggressive approach)
-    if key_terms and not any(term.lower() in pin_title.lower() for term in key_terms.split()):
-        first_term = key_terms.split()[0]
-        pin_title = f"{first_term} {pin_title}"
-        print(f"   🔥 AGGRESSIVE: Forced '{first_term}' into title")
+        # Use original function
+        return generate_single_pin_title_original(data)
 
-    # If output is too long for Pinterest titles, hard-truncate and append ellipsis
-    if len(pin_title) > 60:
-        pin_title = pin_title[:57].rstrip() + "..."
-
-    # Optionally, add an emoji if none present (to boost CTR)
-    # if not re.search(r'[😀-🙏🦄✨❤️⭐🌟🔥💡🛒🎁]', pin_title):
-    #     pin_title += " ⭐"
-
-    # If still empty, fallback
-    if not pin_title:
-        pin_title = f"{clean_product_name} – Jetzt entdecken!"
-
-    return pin_title
-@retry_on_rate_limit
+def generate_single_pin_title_original(data):
+    """
+    Original Pinterest Pin Title generation function (fallback)
+    """
 def generate_single_pin_description(data):
     """
     Generate a world-class Pinterest Pin Description with Hashtags using DeepSeek.
@@ -893,53 +832,62 @@ def update_automation_status(status, step="", error_msg=""):
 
 def generate_ai_pin_text_batch(image_data):
     """
-    GOD MODE: Parallel, reliable, and progress-tracked AI Pin title/desc/board generation for massive scale.
-    Each Pin is generated in its own thread, and results are returned in the correct order.
-    Board title cache is thread-safe and minimizes duplicate AI calls.
+    Generate AI Pin text batch with optional trending keywords and audience insights integration.
     """
-    if not DEEPSEEK_API_KEY or not image_data:
-        print("⚠️ No AI key or no data.")
-        return [("AI Key fehlt", "AI Key fehlt", "AI Key fehlt") for _ in image_data]
-
-    total_pins = len(image_data)
-    print(f"\n🚀 Generating AI text for {total_pins} Pins using up to 18 workers...")
-
-    board_titles_cache = {}
-    cache_lock = threading.Lock()
-    results = [None] * total_pins
-
-    def generate_for_pin(idx, data):
+    if ENHANCED_FEATURES_ENABLED and enhanced_pin_generation:
         try:
-            pin_title = generate_single_pin_title(data)
-            pin_desc  = generate_single_pin_description(data)
-            product_name = data[1] if len(data) > 1 else ""
-            product_type = data[4] if len(data) > 4 else ""
-            # Priority: product_name first, fallback product_type
-            board_key = product_name if product_name else product_type
-            with cache_lock:
-                board_title = generate_board_title_for_collection(board_key, board_titles_cache)
-            return (idx, pin_title, pin_desc, board_title)
+            print("🎯 Using enhanced AI batch generation with trending keywords and audience insights...")
+            # Use enhanced batch generation
+            results = []
+            for i, data in enumerate(image_data):
+                try:
+                    print(f"   Processing pin {i+1}/{len(image_data)}: {data[1] if len(data) > 1 else 'Unknown'}")
+                    
+                    # Generate enhanced title and description
+                    enhanced_title = enhanced_pin_generation.generate_enhanced_pin_title(
+                        data, use_trending_keywords=True, region=DEFAULT_REGION
+                    )
+                    enhanced_description = enhanced_pin_generation.generate_enhanced_pin_description(
+                        data, use_trending_keywords=True, region=DEFAULT_REGION
+                    )
+                    
+                    # Use existing board title logic
+                    product_name = data[1] if len(data) > 1 else ""
+                    product_type = data[4] if len(data) > 4 else ""
+                    board_key = product_name if product_name else product_type
+                    
+                    # Simple board title mapping
+                    board_title = "Trend-Produkte"  # Default
+                    if "dress" in board_key.lower() or "kleid" in board_key.lower():
+                        board_title = "Bestseller Kleider"
+                    elif "shoes" in board_key.lower() or "schuhe" in board_key.lower():
+                        board_title = "Schuhe & Boots Trends"
+                    elif "bag" in board_key.lower() or "tasche" in board_key.lower():
+                        board_title = "Trendige Accessoires"
+                    
+                    results.append((enhanced_title, enhanced_description, board_title))
+                    
+                except Exception as e:
+                    print(f"❌ Error processing pin {i+1}: {e}")
+                    # Fallback
+                    name = data[1].replace('_', ' ') if len(data) > 1 else "Produkt"
+                    results.append((f"{name} – Jetzt entdecken!", "Ein Must-Have für 2025! #Trend #Fashion", "Trend-Produkte"))
+            
+            print(f"✅ Enhanced AI generation completed: {len(results)} results")
+            return results
+            
         except Exception as e:
-            name = data[1].replace('_', ' ') if len(data) > 1 else "Produkt"
-            print(f"❌ AI ERROR (idx={idx}): {e}")
-            return (idx, f"{name} – Jetzt entdecken!", "Ein Must-Have für 2025! #Trend #Fashion", "Trend-Produkte")
+            print(f"⚠️ Enhanced batch generation failed, using fallback: {e}")
+            # Fallback to original function
+            return generate_ai_pin_text_batch_original(image_data)
+    else:
+        # Use original function
+        return generate_ai_pin_text_batch_original(image_data)
 
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=18) as executor:
-        # Start all jobs
-        futures = {executor.submit(generate_for_pin, i, d): i for i, d in enumerate(image_data)}
-        completed = 0
-        for future in concurrent.futures.as_completed(futures):
-            idx, pin_title, pin_desc, board_title = future.result()
-            results[idx] = (pin_title, pin_desc, board_title)
-            completed += 1
-            if completed % max(1, total_pins // 20) == 0 or completed == total_pins:
-                update_progress(completed, total_pins, stage="AI Generation")
-    print(f"\n✅ Completed AI Generation. Processed {total_pins} items.")
-    return results
-
-import re
-
+def generate_ai_pin_text_batch_original(image_data):
+    """
+    Original AI Pin text batch generation function (fallback)
+    """
 def clean_pin_description(description):
     # Remove everything after "(250 Zeichen)" if it appears
     description = re.split(r"\(250 Zeichen\)", description)[0]
@@ -1530,175 +1478,6 @@ def run_step1_content_generation(collection_id, image_limit=10):
         print(f"❌ {error_msg}")
         update_automation_status('error', 'Step 1 failed', error_msg)
 
-def run_step1_content_generation_enhanced(collection_id, image_limit=10):
-    """
-    Enhanced Step 1: Content Generation with Pinterest Trends and Customer Persona Integration
-    Fetch products, generate AI content with trending keywords and audience insights, save to Google Sheets
-    """
-    try:
-        # Enhanced Pinterest integration imports
-        import sys
-        meta_change_path = '/Users/saschavanwell/Documents/meta-change'
-        sys.path.append(meta_change_path)
-        
-        try:
-            from pin_generation_enhancement import PinGenerationEnhancement
-            print("✅ Enhanced Pinterest integration modules loaded")
-            ENHANCED_FEATURES_AVAILABLE = True
-        except ImportError as e:
-            print(f"⚠️ Could not load enhanced integration modules: {e}")
-            PinGenerationEnhancement = None
-            ENHANCED_FEATURES_AVAILABLE = False
-        
-        # Enhanced features configuration
-        ENHANCED_FEATURES_ENABLED = True
-        TRENDING_KEYWORDS_ENABLED = True
-        AUDIENCE_INSIGHTS_ENABLED = True
-        DEFAULT_REGION = "DE"
-        
-        # Initialize enhanced integration
-        enhanced_pin_generation = None
-        if ENHANCED_FEATURES_AVAILABLE and PinGenerationEnhancement:
-            try:
-                enhanced_pin_generation = PinGenerationEnhancement()
-                print("✅ Enhanced pin generation initialized")
-            except Exception as e:
-                print(f"⚠️ Error initializing enhanced pin generation: {e}")
-                enhanced_pin_generation = None
-        
-        # Get collection name for display
-        collections_dict = fetch_collections()
-        collection_name = collections_dict.get(str(collection_id), f"Collection {collection_id}")
-        
-        print(f"\n--- Starting Enhanced Step 1: Content Generation for Collection: {collection_name} ---")
-        update_automation_status('running', 'Enhanced Step 1: Fetching Shopify Product Data...')
-
-        # Step 0: Clean up collections before processing
-        print("\n[Step 0/3] Cleaning up collections...")
-        cleanup_success = cleanup_collections()
-        if not cleanup_success:
-            print("⚠️ Collection cleanup failed, but continuing with content generation...")
-        
-        # Step 0.5: Move processed products to GENERATED collection
-        print("\n[Step 0.5/3] Moving processed products to GENERATED collection...")
-        try:
-            from a import move_processed_products_to_generated_collection
-            move_success = move_processed_products_to_generated_collection()
-            if move_success:
-                print("✅ Successfully moved processed products to GENERATED collection")
-            else:
-                print("ℹ️ No processed products found to move")
-        except Exception as e:
-            print(f"⚠️ Error moving processed products: {e}")
-            print("Continuing with content generation...")
-
-        # Step 1: Fetch data from Shopify
-        print("\n[Step 1/3] Fetching Shopify Product Data...")
-        image_data = fetch_product_data(collection_id, image_limit)
-        if not image_data:
-            error_msg = f"No product data fetched for collection {collection_id}"
-            print(f"❌ Step 1 stopped: {error_msg}")
-            update_automation_status('error', 'Failed to fetch products', error_msg)
-            return
-
-        # Update progress with total items found
-        with progress_lock:
-            automation_progress['total_items'] = len(image_data)
-        
-        print(f"✅ Found {len(image_data)} products to process")
-
-        # Enhanced Step 2: Generate AI content with Pinterest trends and customer persona
-        print("\n[Step 2/3] Generating Enhanced AI Text with Pinterest Trends and Customer Persona...")
-        update_automation_status('running', 'Enhanced Step 1: Generating AI content with Pinterest trends...')
-        
-        if ENHANCED_FEATURES_ENABLED and enhanced_pin_generation:
-            print("🎯 Using enhanced AI generation with Pinterest trends and audience insights...")
-            try:
-                # Get customer persona for better targeting
-                print("👤 Fetching customer persona insights...")
-                audience_insights = enhanced_pin_generation.get_audience_insights()
-                if audience_insights:
-                    persona = enhanced_pin_generation.generate_customer_persona(audience_insights)
-                    print(f"✅ Customer persona generated: {persona.get('persona_name', 'Unknown')}")
-                    print(f"   Demographics: {persona.get('demographics', {})}")
-                    print(f"   Target Keywords: {persona.get('target_keywords', [])}")
-                else:
-                    print("⚠️ No audience insights available, using default targeting")
-                    persona = None
-                
-                # Generate enhanced AI content
-                ai_results = []
-                for i, data in enumerate(image_data):
-                    try:
-                        print(f"   Processing pin {i+1}/{len(image_data)}: {data[1] if len(data) > 1 else 'Unknown'}")
-                        
-                        # Generate enhanced title and description
-                        enhanced_title = enhanced_pin_generation.generate_enhanced_pin_title(
-                            data, use_trending_keywords=True, region=DEFAULT_REGION
-                        )
-                        enhanced_description = enhanced_pin_generation.generate_enhanced_pin_description(
-                            data, use_trending_keywords=True, region=DEFAULT_REGION
-                        )
-                        
-                        # Use existing board title logic
-                        product_name = data[1] if len(data) > 1 else ""
-                        product_type = data[4] if len(data) > 4 else ""
-                        board_key = product_name if product_name else product_type
-                        
-                        # Enhanced board title mapping with trending keywords
-                        board_title = "Trend-Produkte"  # Default
-                        if "dress" in board_key.lower() or "kleid" in board_key.lower():
-                            board_title = "Bestseller Kleider"
-                        elif "shoes" in board_key.lower() or "schuhe" in board_key.lower():
-                            board_title = "Schuhe & Boots Trends"
-                        elif "bag" in board_key.lower() or "tasche" in board_key.lower():
-                            board_title = "Trendige Accessoires"
-                        
-                        ai_results.append((enhanced_title, enhanced_description, board_title))
-                        
-                    except Exception as e:
-                        print(f"❌ Error processing pin {i+1}: {e}")
-                        # Fallback to original format
-                        name = data[1].replace('_', ' ') if len(data) > 1 else "Produkt"
-                        ai_results.append((f"{name} – Jetzt entdecken!", "Ein Must-Have für 2025! #Trend #Fashion", "Trend-Produkte"))
-                
-                print(f"✅ Enhanced AI generation completed: {len(ai_results)} results")
-                
-            except Exception as e:
-                print(f"⚠️ Enhanced AI generation failed, using fallback: {e}")
-                # Fallback to original function
-                ai_results = generate_ai_pin_text_batch(image_data)
-        else:
-            print("⚠️ Enhanced features not available, using original AI generation...")
-            ai_results = generate_ai_pin_text_batch(image_data)
-
-        # Step 3: Save data to Google Sheets
-        print("\n[Step 3/3] Saving to Google Sheets...")
-        update_automation_status('running', 'Enhanced Step 1: Saving to Google Sheets...')
-        
-        # Combine image data with AI results
-        combined_data = []
-        for i, (image_info, ai_info) in enumerate(zip(image_data, ai_results)):
-            title, description, board_title = ai_info
-            combined_data.append(image_info + [title, description, board_title])
-        
-        # Save to Google Sheets
-        save_success = save_to_google_sheets(combined_data)
-        if not save_success:
-            error_msg = "Failed to save data to Google Sheets"
-            print(f"❌ Step 1 stopped: {error_msg}")
-            update_automation_status('error', 'Failed to save to Google Sheets', error_msg)
-            return
-
-        print(f"\n--- Enhanced Step 1 Completed for Collection: {collection_name} ---")
-        print(f"✅ Enhanced content generation completed with Pinterest trends and customer persona integration!")
-        update_automation_status('completed', 'Enhanced Step 1: Content generation completed successfully!')
-        
-    except Exception as e:
-        error_msg = f"Enhanced Step 1 failed: {str(e)}"
-        print(f"❌ {error_msg}")
-        update_automation_status('error', 'Enhanced Step 1 failed', error_msg)
-
 def run_step2_pinterest_posting(delay_between_posts=45, max_posts=0):
     """Step 2: Pinterest Posting - Post pins to Pinterest with rate limiting"""
     try:
@@ -2088,6 +1867,58 @@ def step3_process():
     flash(f"✅ Step 3 started: Campaign creation ({campaign_type}) in {campaign_mode} mode, starting {start_date_msg}. Check status page for progress.", "success")
     return redirect(url_for("status_page"))
 
+
+
+# Enhanced Pinterest features routes
+@app.route("/enhanced_features")
+def enhanced_features_page():
+    """Enhanced features configuration page"""
+    return render_template("enhanced_features.html", 
+                         enhanced_enabled=ENHANCED_FEATURES_ENABLED,
+                         trending_enabled=TRENDING_KEYWORDS_ENABLED,
+                         audience_enabled=AUDIENCE_INSIGHTS_ENABLED,
+                         default_region=DEFAULT_REGION)
+
+@app.route("/enhanced_features/update", methods=["POST"])
+def update_enhanced_features():
+    """Update enhanced features configuration"""
+    global ENHANCED_FEATURES_ENABLED, TRENDING_KEYWORDS_ENABLED, AUDIENCE_INSIGHTS_ENABLED, DEFAULT_REGION
+    
+    ENHANCED_FEATURES_ENABLED = request.form.get("enhanced_enabled") == "true"
+    TRENDING_KEYWORDS_ENABLED = request.form.get("trending_enabled") == "true"
+    AUDIENCE_INSIGHTS_ENABLED = request.form.get("audience_enabled") == "true"
+    DEFAULT_REGION = request.form.get("default_region", "DE")
+    
+    flash("✅ Enhanced features configuration updated!", "success")
+    return redirect(url_for("enhanced_features_page"))
+
+@app.route("/customer_persona")
+def customer_persona_page():
+    """Customer persona insights page"""
+    persona_data = None
+    if enhanced_pin_generation:
+        try:
+            audience_insights = enhanced_pin_generation.get_audience_insights()
+            if audience_insights:
+                persona_data = enhanced_pin_generation.generate_customer_persona(audience_insights)
+        except Exception as e:
+            print(f"❌ Error getting customer persona: {e}")
+    
+    return render_template("customer_persona.html", persona_data=persona_data)
+
+@app.route("/trending_keywords")
+def trending_keywords_page():
+    """Trending keywords page"""
+    trending_data = None
+    if enhanced_pin_generation:
+        try:
+            trending_data = enhanced_pin_generation.get_trending_keywords(
+                region=DEFAULT_REGION, trend_type="growing"
+            )
+        except Exception as e:
+            print(f"❌ Error getting trending keywords: {e}")
+    
+    return render_template("trending_keywords.html", trending_data=trending_data)
 
 if __name__ == "__main__":
     print("--- Initializing Application ---")

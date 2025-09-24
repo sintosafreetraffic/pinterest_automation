@@ -1,0 +1,63 @@
+# Shopify-Pinterest Automation System PRD
+
+## Project Overview
+A comprehensive automation system that connects Shopify e-commerce with Pinterest marketing, featuring AI-powered content generation, automated pin creation, and intelligent campaign management.
+
+## Core Features
+
+### 1. Shopify Integration
+- Product data extraction from Shopify collections
+- Automatic product movement between collections (READY FOR PINTEREST → GENERATED)
+- Real-time inventory and product status tracking
+- Seasonal content intelligence for German market
+
+### 2. AI Content Generation
+- DeepSeek AI integration for pin title and description generation
+- Seasonal context awareness (6-week lookahead for Germany)
+- German language optimization
+- Brand voice consistency across all content
+
+### 3. Pinterest Marketing Automation
+- Automated pin creation with CTA "On Sale"
+- Board management and organization
+- Multi-product campaign creation (10 products per campaign)
+- 10 euro daily budget per campaign
+- Rate limiting and anti-spam handling
+
+### 4. Google Sheets Data Management
+- Centralized data storage and tracking
+- Real-time status updates
+- Campaign performance monitoring
+- Multi-sheet integration for enhanced campaigns
+
+### 5. Automated Scheduling
+- Cron job execution (5 AM and 5 PM UTC daily)
+- Smooth workflow progression between steps
+- Error handling and recovery
+- Completion detection and optimization
+
+## Technical Requirements
+
+### Performance
+- Handle 1000+ products efficiently
+- Process multiple campaigns simultaneously
+- Graceful rate limiting compliance
+- Real-time status updates
+
+### Reliability
+- Robust error handling for API failures
+- Automatic retry mechanisms
+- Data integrity protection
+- Backup and recovery systems
+
+### Scalability
+- Support for multiple Shopify stores
+- Expandable to additional social platforms
+- Configurable campaign parameters
+- Multi-language support
+
+## Success Metrics
+- 90%+ automation success rate
+- <5% error rate in campaign creation
+- 24/7 operational capability
+- Seamless integration between platforms

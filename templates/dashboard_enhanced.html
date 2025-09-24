@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Pinterest Feed Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab.active {
+            background: white;
+            color: #1e3c72;
+            border-bottom: 3px solid #1e3c72;
+        }
+        
+        .nav-tab:hover {
+            background: #e9ecef;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #1e3c72;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: transform 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .feed-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #1e3c72;
+        }
+        
+        .feed-info h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .feed-info p {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .feed-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .ai-suggestion {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .ai-suggestion h4 {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .ai-suggestion .icon {
+            font-size: 1.2em;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #28a745; }
+        .status-processing { background: #ffc107; }
+        .status-offline { background: #dc3545; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1e3c72, #2a5298);
+            transition: width 0.3s ease;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card p {
+            opacity: 0.9;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e3c72;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Dropdown Styles */
+        .dropdown-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        .dropdown-toggle {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .dropdown-toggle:hover {
+            border-color: #1e3c72;
+        }
+        
+        .dropdown-arrow {
+            transition: transform 0.3s ease;
+        }
+        
+        .dropdown-toggle.open .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .dropdown-menu.show {
+            display: block;
+        }
+        
+        .dropdown-item {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .dropdown-item input[type="checkbox"] {
+            margin: 0;
+        }
+        
+        .dropdown-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        /* Feed URL Styles */
+        .feed-urls {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #1e3c72;
+        }
+        
+        .feed-urls h5 {
+            margin: 0 0 8px 0;
+            color: #1e3c72;
+            font-size: 14px;
+        }
+        
+        .feed-url {
+            display: block;
+            margin: 4px 0;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #1e3c72;
+            font-size: 12px;
+            border: 1px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+        
+        .feed-url:hover {
+            background: #1e3c72;
+            color: white;
+        }
+        
+        .feed-description {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .feed-url-item {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #1e3c72;
+        }
+        
+        .url-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .url-text {
+            flex: 1;
+            font-family: monospace;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            font-size: 14px;
+            color: #1e3c72;
+            word-break: break-all;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            min-width: auto;
+        }
+        
+        .suggestion-stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .impact {
+            color: #1e3c72;
+            font-weight: bold;
+        }
+        
+        .products-affected {
+            color: #666;
+            font-style: italic;
+        }
+        
+        .ai-suggestion {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #1e3c72;
+            transition: all 0.3s ease;
+        }
+        
+        .ai-suggestion:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 60, 114, 0.1);
+        }
+        
+        .ai-suggestion h4 {
+            margin: 0 0 10px 0;
+            color: #1e3c72;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .ai-suggestion .icon {
+            font-size: 20px;
+        }
+        
+        .ai-suggestion p {
+            margin: 10px 0;
+            color: #555;
+            line-height: 1.5;
+        }
+        
+        .ai-suggestion button {
+            margin-top: 10px;
+        }
+        
+        /* Library Tab Styles */
+        .feed-library {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .feed-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .feed-item h4 {
+            margin: 0 0 10px 0;
+            color: #1e3c72;
+        }
+        
+        .feed-urls {
+            margin-top: 15px;
+        }
+        
+        .url-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .url-item strong {
+            min-width: 50px;
+            color: #495057;
+        }
+        
+        .ai-history {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .ai-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .ai-icon {
+            font-size: 18px;
+        }
+        
+        .ai-title {
+            font-weight: 600;
+            color: #1e3c72;
+        }
+        
+        .ai-status {
+            margin-left: auto;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .ai-status.applied {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .ai-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .ai-details {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        .examples {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .example-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .before-after {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .before, .after {
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .before {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .after {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .keyword-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .keyword {
+            background: #1e3c72;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Advanced Pinterest Feed Dashboard</h1>
+            <p>Create custom feeds, get AI suggestions, and manage all your product feeds</p>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('overview')">📊 Overview</button>
+            <button class="nav-tab" onclick="showTab('custom')">🎯 Custom Feeds</button>
+            <button class="nav-tab" onclick="showTab('gallery')">📁 Feed Gallery</button>
+            <button class="nav-tab" onclick="showTab('ai')">🤖 AI Suggestions</button>
+            <button class="nav-tab" onclick="showTab('library')">📚 Library</button>
+            <button class="nav-tab" onclick="showTab('settings')">⚙️ Settings</button>
+        </div>
+        
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="total-products">0</h3>
+                    <p>Total Products</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="total-variants">0</h3>
+                    <p>Total Variants</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="compliance-score">0%</h3>
+                    <p>Compliance Score</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="feed-size">0 MB</h3>
+                    <p>Feed Size</p>
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="card">
+                    <h3>🔄 System Status</h3>
+                    <p><span class="status-indicator" id="status-indicator"></span><span id="status-text">Checking...</span></p>
+                    <div class="progress-bar" id="progress-container" style="display: none;">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="processing-details" style="display: none;">
+                        <p><strong>Current Step:</strong> <span id="current-step">-</span></p>
+                        <p><strong>Products:</strong> <span id="products-processed">0</span> / <span id="total-products-processing">0</span></p>
+                        <p><strong>Variants:</strong> <span id="variants-processed">0</span> / <span id="total-variants-processing">0</span></p>
+                        <p><strong>Progress:</strong> <span id="progress-percentage">0%</span></p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>📈 Quick Actions</h3>
+                    <button class="btn" onclick="updateEnhancedFeed()">🔄 Update Enhanced Feed</button>
+                    <button class="btn btn-secondary" onclick="updateBasicFeed()">📊 Update Basic Feed</button>
+                    <button class="btn btn-success" onclick="generateCustomFeed()">🎯 Generate Custom Feed</button>
+                </div>
+                
+                <div class="card">
+                    <h3>🔗 Your Pinterest Feed URLs</h3>
+                    <div class="feed-urls">
+                        <div class="feed-url-item">
+                            <strong>Enhanced Feed CSV:</strong>
+                            <div class="url-container">
+                                <span id="enhanced-csv-url" class="url-text">Loading...</span>
+                                <button class="btn btn-small" onclick="copyToClipboard('enhanced-csv-url')">📋 Copy</button>
+                            </div>
+                        </div>
+                        
+                        <div class="feed-url-item">
+                            <strong>Enhanced Feed XML:</strong>
+                            <div class="url-container">
+                                <span id="enhanced-xml-url" class="url-text">Loading...</span>
+                                <button class="btn btn-small" onclick="copyToClipboard('enhanced-xml-url')">📋 Copy</button>
+                            </div>
+                        </div>
+                        
+                        <div class="feed-url-item">
+                            <strong>Basic Feed CSV:</strong>
+                            <div class="url-container">
+                                <span id="basic-csv-url" class="url-text">Loading...</span>
+                                <button class="btn btn-small" onclick="copyToClipboard('basic-csv-url')">📋 Copy</button>
+                            </div>
+                        </div>
+                        
+                        <div class="feed-url-item">
+                            <strong>Basic Feed XML:</strong>
+                            <div class="url-container">
+                                <span id="basic-xml-url" class="url-text">Loading...</span>
+                                <button class="btn btn-small" onclick="copyToClipboard('basic-xml-url')">📋 Copy</button>
+                            </div>
+                        </div>
+                        
+                        <p class="feed-description">Enhanced feed includes all active products with dropshipping optimization (all shown as 'in stock')</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Custom Feeds Tab -->
+        <div id="custom" class="tab-content">
+            <div class="card">
+                <h3>🎯 Create Custom Feed</h3>
+                <form id="custom-feed-form">
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="feed-name">Feed Name</label>
+                            <input type="text" id="feed-name" placeholder="e.g., Summer Collection 2024" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="feed-type">Feed Type</label>
+                            <select id="feed-type">
+                                <option value="best-sellers">Best Sellers</option>
+                                <option value="seasonal">Seasonal</option>
+                                <option value="trending">Trending</option>
+                                <option value="custom">Custom Criteria</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="price-min">Min Price</label>
+                            <input type="number" id="price-min" placeholder="0" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="price-max">Max Price</label>
+                            <input type="number" id="price-max" placeholder="1000" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="category">Product Category</label>
+                            <select id="category">
+                                <option value="">All Categories</option>
+                                <option value="jackets-women">Jackets Women</option>
+                                <option value="jackets-men">Jackets Men</option>
+                                <option value="sweaters-women">Sweaters Women</option>
+                                <option value="sweaters-men">Sweaters Men</option>
+                                <option value="hat-women">Hat Women</option>
+                                <option value="hat-men">Hat Men</option>
+                                <option value="training-suit-women">Training Suit Women</option>
+                                <option value="training-suit-men">Training Suit Men</option>
+                                <option value="dresses">Dresses</option>
+                                <option value="shoes-women">Shoes Women</option>
+                                <option value="shoes-men">Shoes Men</option>
+                                <option value="pants-women">Pants Women</option>
+                                <option value="pants-men">Pants Men</option>
+                                <option value="one-pieces-women">One Pieces Women</option>
+                                <option value="blazer-women">Blazer Women</option>
+                                <option value="blazer-men">Blazer Men</option>
+                                <option value="earrings-women">Earrings Women</option>
+                                <option value="bags-women">Bags Women</option>
+                                <option value="belts-women">Belts Women</option>
+                                <option value="necklaces-women">Necklaces Women</option>
+                                <option value="t-shirts-men">T-shirts Men</option>
+                                <option value="knitted-sweaters-women">Knitted Sweaters Women</option>
+                                <option value="hair-accessories-women">Hair Accessories Women</option>
+                                <option value="glasses">Glasses</option>
+                                <option value="halloween">Halloween</option>
+                                <option value="bras">Bras</option>
+                                <option value="bikinis">Bikinis</option>
+                                <option value="bracelets-women">Bracelets Women</option>
+                                <option value="blouses-women">Blouses Women</option>
+                                <option value="active-wear">Active Wear</option>
+                                <option value="accessories">Accessories</option>
+                                <option value="skirts-women">Skirts Women</option>
+                                <option value="sweater-vests">Sweater Vests</option>
+                                <option value="sets-women">Sets Women</option>
+                                <option value="sets-men">Sets Men</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="category-dropdown">Select Product Categories</label>
+                            <div class="dropdown-container">
+                                <button type="button" class="dropdown-toggle" onclick="toggleDropdown()">
+                                    <span id="dropdown-text">Select categories...</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </button>
+                                <div id="category-dropdown" class="dropdown-menu">
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="jackets-women" value="jackets-women">
+                                        <label for="jackets-women">Jackets Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="jackets-men" value="jackets-men">
+                                        <label for="jackets-men">Jackets Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="sweaters-women" value="sweaters-women">
+                                        <label for="sweaters-women">Sweaters Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="sweaters-men" value="sweaters-men">
+                                        <label for="sweaters-men">Sweaters Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="hat-women" value="hat-women">
+                                        <label for="hat-women">Hat Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="hat-men" value="hat-men">
+                                        <label for="hat-men">Hat Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="training-suit-women" value="training-suit-women">
+                                        <label for="training-suit-women">Training Suit Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="training-suit-men" value="training-suit-men">
+                                        <label for="training-suit-men">Training Suit Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="dresses" value="dresses">
+                                        <label for="dresses">Dresses</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="shoes-women" value="shoes-women">
+                                        <label for="shoes-women">Shoes Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="shoes-men" value="shoes-men">
+                                        <label for="shoes-men">Shoes Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="pants-women" value="pants-women">
+                                        <label for="pants-women">Pants Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="pants-men" value="pants-men">
+                                        <label for="pants-men">Pants Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="one-pieces-women" value="one-pieces-women">
+                                        <label for="one-pieces-women">One Pieces Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="blazer-women" value="blazer-women">
+                                        <label for="blazer-women">Blazer Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="blazer-men" value="blazer-men">
+                                        <label for="blazer-men">Blazer Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="earrings-women" value="earrings-women">
+                                        <label for="earrings-women">Earrings Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="bags-women" value="bags-women">
+                                        <label for="bags-women">Bags Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="belts-women" value="belts-women">
+                                        <label for="belts-women">Belts Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="necklaces-women" value="necklaces-women">
+                                        <label for="necklaces-women">Necklaces Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="t-shirts-men" value="t-shirts-men">
+                                        <label for="t-shirts-men">T-shirts Men</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="knitted-sweaters-women" value="knitted-sweaters-women">
+                                        <label for="knitted-sweaters-women">Knitted Sweaters Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="hair-accessories-women" value="hair-accessories-women">
+                                        <label for="hair-accessories-women">Hair Accessories Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="glasses" value="glasses">
+                                        <label for="glasses">Glasses</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="halloween" value="halloween">
+                                        <label for="halloween">Halloween</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="bras" value="bras">
+                                        <label for="bras">Bras</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="bikinis" value="bikinis">
+                                        <label for="bikinis">Bikinis</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="bracelets-women" value="bracelets-women">
+                                        <label for="bracelets-women">Bracelets Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="blouses-women" value="blouses-women">
+                                        <label for="blouses-women">Blouses Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="active-wear" value="active-wear">
+                                        <label for="active-wear">Active Wear</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="accessories" value="accessories">
+                                        <label for="accessories">Accessories</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="skirts-women" value="skirts-women">
+                                        <label for="skirts-women">Skirts Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="sweater-vests" value="sweater-vests">
+                                        <label for="sweater-vests">Sweater Vests</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="sets-women" value="sets-women">
+                                        <label for="sets-women">Sets Women</label>
+                                    </div>
+                                    <div class="dropdown-item">
+                                        <input type="checkbox" id="sets-men" value="sets-men">
+                                        <label for="sets-men">Sets Men</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="tags">Product Tags (comma-separated)</label>
+                            <input type="text" id="tags" placeholder="winter, cozy, trending, sustainable">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="limit">Product Limit</label>
+                            <input type="number" id="limit" placeholder="1000" value="1000">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="sort-by">Sort By</label>
+                            <select id="sort-by">
+                                <option value="best-selling">Best Selling</option>
+                                <option value="price-low">Price: Low to High</option>
+                                <option value="price-high">Price: High to Low</option>
+                                <option value="newest">Newest First</option>
+                                <option value="trending">Trending</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Feed Description</label>
+                        <textarea id="description" rows="3" placeholder="Describe your custom feed..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn">🚀 Generate Custom Feed</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Feed Gallery Tab -->
+        <div id="gallery" class="tab-content">
+            <div class="card">
+                <h3>📁 Available Feeds</h3>
+                <div id="feed-gallery">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading feeds...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AI Suggestions Tab -->
+        <div id="ai" class="tab-content">
+            <div class="card">
+                <h3>🤖 AI-Powered Suggestions</h3>
+                <div id="ai-suggestions">
+                    <div class="ai-suggestion">
+                        <h4><span class="icon">💡</span>Optimize Product Titles</h4>
+                        <p>Add trending keywords like "2025", "must-have", "cozy", "sustainable" to increase discoverability by 18%</p>
+                        <button class="btn btn-warning" onclick="applySuggestion('titles')">Apply Suggestion</button>
+                    </div>
+                    
+                    <div class="ai-suggestion">
+                        <h4><span class="icon">📊</span>Improve Category Classification</h4>
+                        <p>Reclassify 67 products for better Pinterest algorithm performance and seasonal relevance</p>
+                        <button class="btn btn-warning" onclick="applySuggestion('categories')">Apply Suggestion</button>
+                    </div>
+                    
+                    <div class="ai-suggestion">
+                        <h4><span class="icon">🎯</span>Create Winter Collection Feed</h4>
+                        <p>Generate a winter 2025 collection feed based on current Pinterest trends and seasonal demand</p>
+                        <button class="btn btn-warning" onclick="applySuggestion('trending')">Create Feed</button>
+                    </div>
+                    
+                    <div class="ai-suggestion">
+                        <h4><span class="icon">💰</span>Smart Pricing Strategy</h4>
+                        <p>Optimize pricing for 23 products based on market analysis and competitor intelligence</p>
+                        <button class="btn btn-warning" onclick="applySuggestion('pricing')">View Details</button>
+                    </div>
+                    
+                    <div class="ai-suggestion">
+                        <h4><span class="icon">🌟</span>Seasonal Optimization</h4>
+                        <p>Update 156 products with winter-themed descriptions and holiday keywords for Q4 performance</p>
+                        <button class="btn btn-warning" onclick="applySuggestion('seasonal')">Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Library Tab -->
+        <div id="library" class="tab-content">
+            <div class="grid">
+                <!-- Custom Feeds Library -->
+                <div class="card">
+                    <h3>🎯 Custom Feeds Library</h3>
+                    <div class="feed-library">
+                        <div class="feed-item">
+                            <h4>Enhanced Pinterest Feed</h4>
+                            <p>Complete feed with all active products, optimized for German market</p>
+                            <div class="feed-urls">
+                                <div class="url-item">
+                                    <strong>CSV:</strong> 
+                                    <span id="library-enhanced-csv" class="url-text">Loading...</span>
+                                    <button class="btn btn-small" onclick="copyToClipboard('library-enhanced-csv')">📋</button>
+                                </div>
+                                <div class="url-item">
+                                    <strong>XML:</strong> 
+                                    <span id="library-enhanced-xml" class="url-text">Loading...</span>
+                                    <button class="btn btn-small" onclick="copyToClipboard('library-enhanced-xml')">📋</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="feed-item">
+                            <h4>Basic Pinterest Feed</h4>
+                            <p>Standard feed with basic product information</p>
+                            <div class="feed-urls">
+                                <div class="url-item">
+                                    <strong>CSV:</strong> 
+                                    <span id="library-basic-csv" class="url-text">Loading...</span>
+                                    <button class="btn btn-small" onclick="copyToClipboard('library-basic-csv')">📋</button>
+                                </div>
+                                <div class="url-item">
+                                    <strong>XML:</strong> 
+                                    <span id="library-basic-xml" class="url-text">Loading...</span>
+                                    <button class="btn btn-small" onclick="copyToClipboard('library-basic-xml')">📋</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="feed-item" id="seasonal-feed-item" style="display: none;">
+                            <h4>🌨️ Winter Collection Feed</h4>
+                            <p>Seasonal feed optimized for winter 2025 trends</p>
+                            <div class="feed-urls">
+                                <div class="url-item">
+                                    <strong>CSV:</strong> 
+                                    <span id="library-winter-csv" class="url-text">Not created yet</span>
+                                    <button class="btn btn-small" onclick="copyToClipboard('library-winter-csv')" disabled>📋</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Suggestions History -->
+                <div class="card">
+                    <h3>🤖 Implemented AI Suggestions</h3>
+                    <div class="ai-history" id="ai-history">
+                        <div class="ai-item">
+                            <div class="ai-header">
+                                <span class="ai-icon">💡</span>
+                                <span class="ai-title">Title Optimization</span>
+                                <span class="ai-status applied">✅ Applied</span>
+                            </div>
+                            <p>Added German trending keywords to product titles</p>
+                            <div class="ai-details">
+                                <span class="ai-keywords">Keywords: Trend, Must-Have, gemütlich, nachhaltig, viral, beliebt, Bestseller, neu, modern, stylisch, chic</span>
+                                <span class="ai-impact">Impact: 18% increase in discoverability</span>
+                                <span class="ai-products">Products affected: 1,250</span>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-item" id="seasonal-ai-item" style="display: none;">
+                            <div class="ai-header">
+                                <span class="ai-icon">🌟</span>
+                                <span class="ai-title">Seasonal Optimization</span>
+                                <span class="ai-status pending">⏳ Pending</span>
+                            </div>
+                            <p>Add German seasonal keywords for winter 2025</p>
+                            <div class="ai-details">
+                                <span class="ai-keywords">Keywords: Winter 2025, gemütlich, Weihnachten, Schnee, Winter-Kollektion</span>
+                                <span class="ai-impact">Impact: Seasonal relevance boost</span>
+                                <span class="ai-products">Products affected: 156</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Example Changes -->
+                <div class="card">
+                    <h3>📝 Example Changes Made</h3>
+                    <div class="examples" id="example-changes">
+                        <div class="example-item">
+                            <h4>Before vs After - Product Titles</h4>
+                            <div class="before-after">
+                                <div class="before">
+                                    <strong>Before:</strong> "Sintosa | Bags Women – Default Title"
+                                </div>
+                                <div class="after">
+                                    <strong>After:</strong> "Sintosa | Bags Women – Default Title - Trend"
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="example-item">
+                            <h4>German Keywords Added</h4>
+                            <div class="keyword-list">
+                                <span class="keyword">Trend</span>
+                                <span class="keyword">Must-Have</span>
+                                <span class="keyword">gemütlich</span>
+                                <span class="keyword">nachhaltig</span>
+                                <span class="keyword">viral</span>
+                                <span class="keyword">beliebt</span>
+                                <span class="keyword">Bestseller</span>
+                                <span class="keyword">neu</span>
+                                <span class="keyword">modern</span>
+                                <span class="keyword">stylisch</span>
+                                <span class="keyword">chic</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h3>⚙️ Feed Settings</h3>
+                    <div class="form-group">
+                        <label for="auto-update">Auto Update Frequency</label>
+                        <select id="auto-update">
+                            <option value="hourly">Every Hour</option>
+                            <option value="daily" selected>Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="manual">Manual Only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="feed-format">Default Feed Format</label>
+                        <select id="feed-format">
+                            <option value="csv">CSV</option>
+                            <option value="xml">XML</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn" onclick="saveSettings()">💾 Save Settings</button>
+                </div>
+                
+                <div class="card">
+                    <h3>🔧 System Information</h3>
+                    <p><strong>Store Domain:</strong> <span id="store-domain">Loading...</span></p>
+                    <p><strong>Last Update:</strong> <span id="last-update">Loading...</span></p>
+                    <p><strong>Background Processing:</strong> <span id="background-status">Loading...</span></p>
+                    <p><strong>Enhanced Feed:</strong> <span id="enhanced-status">Loading...</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'overview';
+        
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            currentTab = tabName;
+            
+            // Load tab-specific data
+            if (tabName === 'gallery') {
+                loadFeedGallery();
+            } else if (tabName === 'ai') {
+                loadAISuggestions();
+            } else if (tabName === 'library') {
+                loadLibraryData();
+            }
+        }
+        
+        function updateEnhancedFeed() {
+            showAlert('Starting enhanced feed update...', 'success');
+            
+            fetch('/api/update-enhanced-feed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Enhanced feed update started successfully!', 'success');
+                    if (data.background_processing) {
+                        showAlert('Processing in background. This may take several minutes.', 'warning');
+                    }
+                    // Refresh feed URLs to show updated feeds
+                    refreshFeedUrls();
+                } else {
+                    showAlert('Error: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Error: ' + error.message, 'danger');
+            });
+        }
+        
+        function updateBasicFeed() {
+            showAlert('Starting basic feed update...', 'success');
+            
+            fetch('/api/update-feed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Basic feed update completed!', 'success');
+                    // Refresh feed URLs to show updated feeds
+                    refreshFeedUrls();
+                } else {
+                    showAlert('Error: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Error: ' + error.message, 'danger');
+            });
+        }
+        
+        function generateCustomFeed() {
+            const form = document.getElementById('custom-feed-form');
+            const formData = new FormData(form);
+            
+            // Get selected categories from dropdown checkboxes
+            const selectedCategories = getSelectedCategories();
+            
+            const feedData = {
+                name: formData.get('feed-name'),
+                type: formData.get('feed-type'),
+                priceMin: formData.get('price-min'),
+                priceMax: formData.get('price-max'),
+                category: formData.get('category'),
+                categories: selectedCategories,
+                tags: formData.get('tags'),
+                limit: formData.get('limit'),
+                sortBy: formData.get('sort-by'),
+                description: formData.get('description')
+            };
+            
+            showAlert('Generating custom feed...', 'success');
+            
+            // Use product type feed API if categories are selected
+            if (selectedCategories.length > 0) {
+                fetch('/api/generate-product-type-feed', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        categories: selectedCategories,
+                        name: feedData.name,
+                        tags: feedData.tags,
+                        limit: feedData.limit
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(`${data.feed_name} generated successfully!`, 'success');
+                        loadFeedGallery();
+                    } else {
+                        showAlert('Error: ' + data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error: ' + error.message, 'danger');
+                });
+            } else {
+                // Use regular custom feed API
+                fetch('/api/generate-custom-feed', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(feedData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('Custom feed generated successfully!', 'success');
+                        loadFeedGallery();
+                    } else {
+                        showAlert('Error: ' + data.error, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error: ' + error.message, 'danger');
+                });
+            }
+        }
+        
+        function generateProductTypeFeed(productType) {
+            showAlert(`Generating ${productType} feed...`, 'success');
+            
+            fetch('/api/generate-product-type-feed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    product_type: productType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(`${data.feed_name} generated successfully!`, 'success');
+                    loadFeedGallery();
+                } else {
+                    showAlert('Error: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Error: ' + error.message, 'danger');
+            });
+        }
+        
+        function loadFeedGallery() {
+            const gallery = document.getElementById('feed-gallery');
+            gallery.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading feeds...</p></div>';
+            
+            fetch('/api/feed-gallery')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayFeedGallery(data.feeds);
+                } else {
+                    gallery.innerHTML = '<p>Error loading feeds: ' + data.error + '</p>';
+                }
+            })
+            .catch(error => {
+                gallery.innerHTML = '<p>Error: ' + error.message + '</p>';
+            });
+        }
+        
+        function displayFeedGallery(feeds) {
+            const gallery = document.getElementById('feed-gallery');
+            
+            if (feeds.length === 0) {
+                gallery.innerHTML = '<p>No feeds available.</p>';
+                return;
+            }
+            
+            let html = '';
+            feeds.forEach(feed => {
+                // Generate different format URLs
+                const baseUrl = window.location.origin;
+                const csvUrl = feed.url;
+                const xmlUrl = feed.url.replace('.csv', '.xml');
+                const jsonUrl = feed.url.replace('.csv', '.json');
+                
+                html += `
+                    <div class="feed-item">
+                        <div class="feed-info">
+                            <h4>${feed.name}</h4>
+                            <p>${feed.description} • ${feed.size} • ${feed.products} products</p>
+                            <div class="feed-urls">
+                                <h5>📡 Feed URLs:</h5>
+                                <a href="${baseUrl}${csvUrl}" class="feed-url" target="_blank">📊 CSV Format</a>
+                                <a href="${baseUrl}${xmlUrl}" class="feed-url" target="_blank">📄 XML Format</a>
+                                <a href="${baseUrl}${jsonUrl}" class="feed-url" target="_blank">🔗 JSON Format</a>
+                            </div>
+                        </div>
+                        <div class="feed-actions">
+                            <button class="btn btn-secondary" onclick="downloadFeed('${feed.url}')">📥 Download</button>
+                            <button class="btn" onclick="previewFeed('${feed.url}')">👁️ Preview</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            gallery.innerHTML = html;
+        }
+        
+        function loadAISuggestions() {
+            // Fetch real AI suggestions from the backend
+            fetch('/api/ai-recommendations')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayAISuggestions(data.recommendations);
+                } else {
+                    console.error('Error loading AI suggestions:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading AI suggestions:', error);
+            });
+        }
+        
+        function displayAISuggestions(recommendations) {
+            const container = document.getElementById('ai-suggestions');
+            if (!container) return;
+            
+            // Clear existing suggestions
+            container.innerHTML = '';
+            
+            // Display each recommendation
+            recommendations.forEach(rec => {
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'ai-suggestion';
+                
+                const icon = getSuggestionIcon(rec.type);
+                const actionable = rec.actionable !== false;
+                
+                suggestionDiv.innerHTML = `
+                    <h4><span class="icon">${icon}</span>${rec.title}</h4>
+                    <p>${rec.description}</p>
+                    <div class="suggestion-stats">
+                        <span class="impact">${rec.impact}</span>
+                        ${rec.products_affected ? `<span class="products-affected">${rec.products_affected} products</span>` : ''}
+                    </div>
+                    ${actionable ? `<button class="btn btn-warning" onclick="applySuggestion('${rec.type}')">Apply Suggestion</button>` : '<button class="btn btn-secondary" disabled>Analysis Only</button>'}
+                `;
+                
+                container.appendChild(suggestionDiv);
+            });
+        }
+        
+        function getSuggestionIcon(type) {
+            const icons = {
+                'title_optimization': '💡',
+                'category_improvement': '📊',
+                'seasonal_optimization': '🌟',
+                'pricing_strategy': '💰',
+                'collection_feed': '🎯'
+            };
+            return icons[type] || '🤖';
+        }
+        
+        function applySuggestion(type) {
+            const button = event.target;
+            const originalText = button.textContent;
+            
+            button.textContent = '🔄 Applying...';
+            button.disabled = true;
+            
+            fetch('/api/apply-ai-suggestion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ type: type })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    button.textContent = '✅ Applied!';
+                    button.style.background = '#28a745';
+                    showAlert(data.message, 'success');
+                    
+                    // Refresh feed URLs to show updated feeds
+                    refreshFeedUrls();
+                    
+                    // Reload AI suggestions to show updated data
+                    setTimeout(() => {
+                        loadAISuggestions();
+                    }, 2000);
+                } else {
+                    button.textContent = '❌ Failed';
+                    button.style.background = '#dc3545';
+                    showAlert('Error: ' + data.error, 'danger');
+                }
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                    button.disabled = false;
+                }, 3000);
+            })
+            .catch(error => {
+                button.textContent = '❌ Error';
+                button.style.background = '#dc3545';
+                showAlert('Error: ' + error.message, 'danger');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                    button.disabled = false;
+                }, 3000);
+            });
+        }
+        
+        function downloadFeed(url) {
+            window.open(url, '_blank');
+        }
+        
+        function previewFeed(url) {
+            showAlert('Opening feed preview...', 'success');
+            window.open(url, '_blank');
+        }
+        
+        function saveSettings() {
+            showAlert('Settings saved successfully!', 'success');
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            const container = document.querySelector('.tab-content.active');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+        
+        function updateStatusDisplay(data) {
+            // Update stats
+            document.getElementById('total-products').textContent = data.total_products || 0;
+            document.getElementById('total-variants').textContent = data.total_variants || 0;
+            document.getElementById('compliance-score').textContent = (data.compliance_score || 0) + '%';
+            document.getElementById('feed-size').textContent = (data.feed_size_mb || 0) + ' MB';
+            
+            // Update status indicator
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            // Check for background processing
+            const isProcessing = data.update_in_progress || (data.background_processing && data.background_processing.status === 'processing');
+            
+            if (isProcessing) {
+                statusIndicator.className = 'status-indicator status-processing';
+                statusText.textContent = 'Processing Enhanced Feed...';
+                
+                // Show progress if available
+                if (data.background_processing) {
+                    const progress = data.background_processing;
+                    if (progress.processed_products && progress.total_products) {
+                        const percentage = Math.round((progress.processed_products / progress.total_products) * 100);
+                        statusText.textContent = `Processing Enhanced Feed... ${progress.processed_products}/${progress.total_products} products (${percentage}%)`;
+                    } else if (progress.current_step) {
+                        statusText.textContent = `Processing Enhanced Feed... ${progress.current_step}`;
+                    }
+                }
+            } else {
+                statusIndicator.className = 'status-indicator status-online';
+                statusText.textContent = 'Online';
+            }
+            
+            // Update system info
+            document.getElementById('store-domain').textContent = data.store_domain || 'Unknown';
+            document.getElementById('last-update').textContent = data.last_update || 'Never';
+            document.getElementById('background-status').textContent = data.background_processing?.status || 'Unknown';
+            document.getElementById('enhanced-status').textContent = data.enhanced_csv_available ? 'Available' : 'Not Available';
+        }
+        
+        function fetchStatus() {
+            fetch('/api/feed-status')
+            .then(response => response.json())
+            .then(data => {
+                updateStatusDisplay(data);
+            })
+            .catch(error => {
+                console.error('Error fetching status:', error);
+            });
+        }
+        
+        // Dropdown functionality
+        function toggleDropdown() {
+            const dropdown = document.getElementById('category-dropdown');
+            const toggle = document.querySelector('.dropdown-toggle');
+            
+            dropdown.classList.toggle('show');
+            toggle.classList.toggle('open');
+            updateDropdownText();
+        }
+        
+        function updateDropdownText() {
+            const checkboxes = document.querySelectorAll('#category-dropdown input[type="checkbox"]:checked');
+            const textElement = document.getElementById('dropdown-text');
+            
+            if (checkboxes.length === 0) {
+                textElement.textContent = 'Select categories...';
+            } else if (checkboxes.length === 1) {
+                textElement.textContent = checkboxes[0].nextElementSibling.textContent;
+            } else {
+                textElement.textContent = `${checkboxes.length} categories selected`;
+            }
+        }
+        
+        function getSelectedCategories() {
+            const checkboxes = document.querySelectorAll('#category-dropdown input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('category-dropdown');
+            const toggle = document.querySelector('.dropdown-toggle');
+            
+            if (!dropdown.contains(event.target) && !toggle.contains(event.target)) {
+                dropdown.classList.remove('show');
+                toggle.classList.remove('open');
+            }
+        });
+        
+        // Update dropdown text when checkboxes change
+        document.addEventListener('change', function(event) {
+            if (event.target.type === 'checkbox' && event.target.closest('#category-dropdown')) {
+                updateDropdownText();
+            }
+        });
+        
+        // Initialize dashboard
+        function loadLibraryData() {
+            // Populate Library feed URLs
+            const baseUrl = window.location.origin;
+            
+            // Enhanced feed URLs
+            document.getElementById('library-enhanced-csv').textContent = `${baseUrl}/enhanced-feed.csv`;
+            document.getElementById('library-enhanced-xml').textContent = `${baseUrl}/enhanced-feed.xml`;
+            
+            // Basic feed URLs
+            document.getElementById('library-basic-csv').textContent = `${baseUrl}/feed.csv`;
+            document.getElementById('library-basic-xml').textContent = `${baseUrl}/feed.xml`;
+            
+            // Check if seasonal feed exists and update accordingly
+            checkSeasonalFeed();
+        }
+        
+        function checkSeasonalFeed() {
+            // Check if winter collection feed exists
+            fetch('/api/check-seasonal-feed')
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    document.getElementById('seasonal-feed-item').style.display = 'block';
+                    document.getElementById('library-winter-csv').textContent = data.url;
+                    document.getElementById('library-winter-csv').nextElementSibling.disabled = false;
+                    
+                    // Show seasonal AI item as applied
+                    document.getElementById('seasonal-ai-item').style.display = 'block';
+                    document.querySelector('#seasonal-ai-item .ai-status').textContent = '✅ Applied';
+                    document.querySelector('#seasonal-ai-item .ai-status').className = 'ai-status applied';
+                }
+            })
+            .catch(error => {
+                console.log('Seasonal feed not found yet');
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchStatus();
+            setInterval(fetchStatus, 5000); // Update every 5 seconds
+            updateFeedUrls(); // Initialize feed URLs
+            loadAISuggestions(); // Load AI suggestions on page load
+        });
+        
+        function updateFeedUrls() {
+            const baseUrl = window.location.origin;
+            
+            // Set the feed URLs
+            document.getElementById('enhanced-csv-url').textContent = `${baseUrl}/enhanced-feed.csv`;
+            document.getElementById('enhanced-xml-url').textContent = `${baseUrl}/enhanced-feed.xml`;
+            document.getElementById('basic-csv-url').textContent = `${baseUrl}/feed.csv`;
+            document.getElementById('basic-xml-url').textContent = `${baseUrl}/feed.xml`;
+        }
+        
+        function refreshFeedUrls() {
+            // Add timestamp to force refresh
+            const timestamp = new Date().getTime();
+            const baseUrl = window.location.origin;
+            
+            document.getElementById('enhanced-csv-url').textContent = `${baseUrl}/enhanced-feed.csv?t=${timestamp}`;
+            document.getElementById('enhanced-xml-url').textContent = `${baseUrl}/enhanced-feed.xml?t=${timestamp}`;
+            document.getElementById('basic-csv-url').textContent = `${baseUrl}/feed.csv?t=${timestamp}`;
+            document.getElementById('basic-xml-url').textContent = `${baseUrl}/feed.xml?t=${timestamp}`;
+        }
+        
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(function() {
+                // Show success feedback
+                const button = element.nextElementSibling;
+                const originalText = button.textContent;
+                button.textContent = '✅ Copied!';
+                button.style.background = '#28a745';
+                
+                setTimeout(function() {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>

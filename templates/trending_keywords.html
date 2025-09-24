@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending Keywords - Pinterest Trends</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .keyword-card { background: #f8f9fa; padding: 20px; margin: 15px 0; border-radius: 6px; border-left: 4px solid #ffc107; }
+        .keyword-item { background: white; padding: 15px; margin: 10px 0; border-radius: 4px; border: 1px solid #e9ecef; }
+        .nav { text-align: center; margin: 20px 0; }
+        .nav a { margin: 0 10px; color: #007bff; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        .tag { display: inline-block; background: #007bff; color: white; padding: 4px 8px; margin: 2px; border-radius: 12px; font-size: 12px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 Trending Keywords</h1>
+            <p>Pinterest trending keywords for enhanced pin generation</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/">🏠 Home</a>
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/enhanced_features">⚙️ Enhanced Features</a>
+            <a href="/customer_persona">👤 Customer Persona</a>
+        </div>
+        
+        {% if trending_data and trending_data.keywords %}
+        <div class="keyword-card">
+            <h2>🔥 Trending Keywords ({{ trending_data.keywords|length }} found)</h2>
+            <p><strong>Region:</strong> {{ trending_data.region or 'DE' }}</p>
+            <p><strong>Trend Type:</strong> {{ trending_data.trend_type or 'growing' }}</p>
+        </div>
+        
+        {% for keyword in trending_data.keywords %}
+        <div class="keyword-item">
+            <h3>🔍 {{ keyword.keyword }}</h3>
+            {% if keyword.search_volume %}
+            <p><strong>Search Volume:</strong> {{ keyword.search_volume }}</p>
+            {% endif %}
+            {% if keyword.interests %}
+            <p><strong>Interests:</strong> 
+                {% for interest in keyword.interests %}
+                    <span class="tag">{{ interest }}</span>
+                {% endfor %}
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        {% else %}
+        <div class="keyword-card">
+            <h2>⚠️ No Trending Keywords Available</h2>
+            <div class="status warning">
+                <p>No trending keywords data is available. This could be due to:</p>
+                <ul>
+                    <li>No trending keywords for the current time period</li>
+                    <li>Pinterest API connection issues</li>
+                    <li>Enhanced features disabled</li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

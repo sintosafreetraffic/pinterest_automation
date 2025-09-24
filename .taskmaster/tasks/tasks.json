@@ -1,0 +1,225 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Project Infrastructure",
+        "description": "Initialize the project repository with necessary dependencies, configuration files, and folder structure for the Shopify-Pinterest automation system.",
+        "details": "Create a Node.js project using Express.js (v4.18.2) as the backend framework. Set up the following structure:\n1. `/src` - Main source code\n2. `/config` - Configuration files\n3. `/services` - Service modules\n4. `/models` - Data models\n5. `/controllers` - Route controllers\n6. `/utils` - Utility functions\n7. `/tests` - Test files\n\nInstall key dependencies:\n- axios@1.4.0 for API requests\n- dotenv@16.3.1 for environment variables\n- googleapis@118.0.0 for Google Sheets integration\n- shopify-api-node@3.12.5 for Shopify API\n- pinterest-node-api@0.1.0 for Pinterest API\n- node-cron@3.0.2 for scheduling\n- winston@3.9.0 for logging\n- jest@29.5.0 for testing\n\nCreate a .env.example file with placeholders for all required API keys and credentials.",
+        "testStrategy": "Verify project structure is correctly set up. Run npm install to ensure all dependencies install without errors. Validate configuration loading with a simple test script.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Implement Shopify API Integration",
+        "description": "Develop the core Shopify integration module to extract product data from collections and track inventory status.",
+        "details": "Create a ShopifyService class using the shopify-api-node package. Implement the following methods:\n\n1. `authenticate()` - Set up API credentials using Admin API access token\n2. `getProductsByCollection(collectionId)` - Fetch products from a specific collection\n3. `moveProductBetweenCollections(productId, sourceCollectionId, targetCollectionId)` - Move products between collections\n4. `getProductInventory(productId)` - Get real-time inventory data\n5. `getProductStatus(productId)` - Check product status (active, draft, etc.)\n\nUse pagination to handle large collections (1000+ products). Implement rate limiting according to Shopify's API guidelines (2 requests per second). Store collection IDs for 'READY FOR PINTEREST' and 'GENERATED' in configuration.\n\nExample usage:\n```javascript\nconst shopifyService = new ShopifyService(config);\nconst products = await shopifyService.getProductsByCollection('ready-for-pinterest-collection-id');\n```",
+        "testStrategy": "Create unit tests with Jest mocking the Shopify API responses. Test each method with valid and invalid inputs. Verify pagination works correctly for large collections. Test error handling for API failures.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Develop Pinterest API Integration",
+        "description": "Create the Pinterest API integration module for pin creation, board management, and campaign creation.",
+        "details": "Implement a PinterestService class using the pinterest-node-api package or Pinterest's v5 API directly with axios if needed. Include methods for:\n\n1. `authenticate()` - Set up OAuth2 authentication\n2. `createPin(boardId, imageUrl, title, description, link, ctaText)` - Create a new pin with CTA 'On Sale'\n3. `getBoards()` - Retrieve available boards\n4. `createBoard(name, description)` - Create a new board if needed\n5. `createCampaign(name, dailyBudget, pinIds)` - Create a campaign with specified pins and budget\n\nImplement rate limiting to comply with Pinterest's API guidelines (1000 requests per day). Add exponential backoff for retries on 429 errors.\n\nEnsure all pins are created with the CTA 'On Sale' as specified in the PRD. Set daily budget to 10 euros per campaign.\n\nExample usage:\n```javascript\nconst pinterestService = new PinterestService(config);\nconst pinId = await pinterestService.createPin(boardId, product.imageUrl, pinTitle, pinDescription, product.url, 'On Sale');\n```",
+        "testStrategy": "Create unit tests with Jest mocking Pinterest API responses. Test pin creation with various product data. Verify campaign creation with the correct budget. Test rate limiting and retry mechanisms.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Implement Google Sheets Integration",
+        "description": "Develop the Google Sheets integration for centralized data storage, tracking, and campaign performance monitoring.",
+        "details": "Create a GoogleSheetsService class using the googleapis package. Implement methods for:\n\n1. `authenticate()` - Set up service account authentication\n2. `createSheet(title)` - Create a new sheet if needed\n3. `appendRow(sheetId, rowData)` - Add new data rows\n4. `updateRow(sheetId, rowIndex, rowData)` - Update existing rows\n5. `getRows(sheetId, range)` - Retrieve data from specified range\n\nCreate a data schema for tracking products with columns:\n- Product ID\n- Title\n- Collection Status\n- Pin Status (Created/Failed)\n- Pin ID\n- Campaign ID\n- Last Updated\n\nImplement a separate sheet for campaign tracking with:\n- Campaign ID\n- Campaign Name\n- Products Count\n- Budget\n- Start Date\n- Performance Metrics\n\nUse batch operations where possible to minimize API calls.\n\nExample usage:\n```javascript\nconst sheetsService = new GoogleSheetsService(config);\nawait sheetsService.appendRow(productTrackingSheetId, [product.id, product.title, 'READY', 'PENDING', '', '', new Date().toISOString()]);\n```",
+        "testStrategy": "Create unit tests with Jest mocking Google Sheets API responses. Test data writing and reading operations. Verify batch operations work correctly. Test error handling and retry mechanisms.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Develop DeepSeek AI Integration for Content Generation",
+        "description": "Implement integration with DeepSeek AI for generating pin titles and descriptions with seasonal context awareness and German language optimization.",
+        "details": "Create an AIContentService class that integrates with DeepSeek AI API. Implement methods for:\n\n1. `authenticate()` - Set up API authentication\n2. `generatePinTitle(productData, seasonalContext)` - Generate optimized pin titles\n3. `generatePinDescription(productData, seasonalContext)` - Generate optimized pin descriptions\n4. `getSeasonalContext()` - Determine current seasonal context with 6-week lookahead for German market\n\nUse DeepSeek's latest model (Coder-33B or newer) with appropriate prompting to ensure brand voice consistency. Include seasonal context in prompts, such as upcoming holidays, seasons, or events in Germany.\n\nImplement caching to avoid regenerating content for the same product in the same seasonal context.\n\nExample prompt template:\n```\nGenerate a compelling Pinterest pin title in German for the following product, optimized for the upcoming {seasonalEvent} in Germany. The title should be concise (max 100 characters) and include a call to action.\n\nProduct: {productName}\nCategory: {productCategory}\nKey Features: {productFeatures}\nPrice: {productPrice}\n```\n\nExample usage:\n```javascript\nconst aiService = new AIContentService(config);\nconst seasonalContext = await aiService.getSeasonalContext();\nconst pinTitle = await aiService.generatePinTitle(product, seasonalContext);\n```",
+        "testStrategy": "Create unit tests with Jest mocking DeepSeek AI API responses. Test content generation with various product types. Verify seasonal context is correctly incorporated. Test caching mechanism. Manually review sample outputs for quality and brand consistency.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Implement Seasonal Context Intelligence",
+        "description": "Develop a system to track and predict seasonal events and trends specific to the German market with a 6-week lookahead.",
+        "details": "Create a SeasonalContextService that provides upcoming seasonal information for the German market. Implement:\n\n1. A calendar of German holidays, events, and seasonal trends\n2. 6-week lookahead functionality to prepare content in advance\n3. Categorization of events by type (holiday, shopping event, seasonal change, etc.)\n4. Relevance scoring for different product categories\n\nUse a combination of static data and potentially an external API like Calendarific (https://calendarific.com/) for holiday data. Include major German shopping events like:\n- Winter/Summer sales periods\n- Black Friday/Cyber Monday\n- Christmas markets opening\n- Back to school season\n- Oktoberfest\n- Regional events\n\nStore the data in a structured format:\n```javascript\nconst seasonalEvents = [\n  {\n    name: 'Weihnachten',\n    startDate: '2023-12-24',\n    endDate: '2023-12-26',\n    type: 'holiday',\n    keywords: ['geschenk', 'fest', 'familie', 'weihnachtsgeschenk'],\n    relevantCategories: ['clothing', 'electronics', 'home', 'toys']\n  },\n  // More events...\n];\n```\n\nImplement a method to get the most relevant upcoming events for a given product category.",
+        "testStrategy": "Create unit tests to verify the 6-week lookahead functionality works correctly. Test with different dates to ensure appropriate seasonal events are returned. Verify relevance scoring for different product categories.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement Automated Scheduling System",
+        "description": "Develop the cron job scheduling system to run automation tasks at 5 AM and 5 PM UTC daily with proper error handling and recovery.",
+        "details": "Create a SchedulerService using node-cron to manage scheduled tasks. Implement:\n\n1. Configuration for two daily runs (5 AM and 5 PM UTC)\n2. Task queue management to ensure tasks run in the correct order\n3. Error handling with automatic retries\n4. Logging of execution status\n5. Notification system for critical failures\n\nUse the following cron expressions:\n- Morning run: `0 5 * * *`\n- Evening run: `0 17 * * *`\n\nImplement a workflow system that executes these steps in sequence:\n1. Fetch products from 'READY FOR PINTEREST' collection\n2. Generate content for each product\n3. Create pins on Pinterest\n4. Group products into campaigns (10 products per campaign)\n5. Create campaigns with 10 euro daily budget\n6. Move products to 'GENERATED' collection\n7. Update tracking in Google Sheets\n\nAdd timeout handling and the ability to resume from failures. Use a state machine approach to track progress.\n\nExample usage:\n```javascript\nconst scheduler = new SchedulerService(config);\nscheduler.registerTask('morningRun', '0 5 * * *', async () => {\n  await automationWorkflow.execute();\n});\nscheduler.start();\n```",
+        "testStrategy": "Create unit tests for the scheduler with mocked time. Test the complete workflow execution with simulated API responses. Verify error handling and recovery mechanisms. Test the state machine for proper state transitions.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Develop Campaign Management System",
+        "description": "Create a system to automatically group products into campaigns, manage campaign budgets, and track performance.",
+        "details": "Implement a CampaignService that handles the creation and management of Pinterest campaigns. Include:\n\n1. Logic to group products into campaigns (10 products per campaign)\n2. Campaign naming convention (e.g., 'Summer_Campaign_2023_06_14_1')\n3. Budget management (10 euro daily budget per campaign)\n4. Campaign status tracking\n5. Performance data collection\n\nImplement intelligent grouping based on product categories or seasonal relevance. Create a database schema or Google Sheets structure to track:\n- Campaign ID\n- Campaign Name\n- Product IDs included\n- Creation Date\n- Budget\n- Status\n- Performance Metrics\n\nExample campaign creation logic:\n```javascript\nasync function createCampaigns(products) {\n  // Group products into batches of 10\n  const productBatches = chunk(products, 10);\n  \n  for (const batch of productBatches) {\n    const campaignName = `Campaign_${new Date().toISOString().split('T')[0]}_${uuidv4().substring(0, 8)}`;\n    const pinIds = batch.map(product => product.pinId);\n    \n    const campaignId = await pinterestService.createCampaign(campaignName, 10, pinIds);\n    \n    // Update tracking\n    await sheetsService.appendRow(campaignSheetId, [\n      campaignId,\n      campaignName,\n      batch.length,\n      10,\n      new Date().toISOString(),\n      'Active'\n    ]);\n  }\n}\n```",
+        "testStrategy": "Create unit tests for campaign grouping logic. Test campaign creation with various product sets. Verify budget setting is correct. Test tracking updates in Google Sheets.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Error Handling and Recovery System",
+        "description": "Develop a robust error handling and recovery system to manage API failures, rate limiting, and ensure data integrity.",
+        "details": "Create an ErrorHandlingService that provides consistent error management across the application. Implement:\n\n1. Centralized error logging with Winston\n2. Categorization of errors (API failure, rate limiting, authentication, etc.)\n3. Automatic retry strategies with exponential backoff\n4. Circuit breaker pattern for external services\n5. Transaction-like operations that can be rolled back\n\nUse the following retry strategy:\n- Initial retry after 1 second\n- Exponential backoff (2^n seconds)\n- Maximum of 5 retries\n- Jitter to prevent thundering herd problem\n\nImplement the circuit breaker using a library like opossum:\n```javascript\nconst circuitBreaker = new CircuitBreaker(apiCall, {\n  failureThreshold: 3,\n  resetTimeout: 30000,\n  timeout: 5000\n});\n```\n\nCreate a transaction-like system for multi-step operations:\n```javascript\nconst transaction = new Transaction();\ntransaction.addStep('createPin', async () => { /* create pin */ }, async () => { /* rollback */ });\ntransaction.addStep('updateSheet', async () => { /* update sheet */ }, async () => { /* rollback */ });\nawait transaction.execute();\n```",
+        "testStrategy": "Create unit tests for retry mechanisms with simulated failures. Test circuit breaker behavior under various failure scenarios. Verify transaction rollback works correctly when a step fails.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Data Integrity and Backup System",
+        "description": "Develop a system to ensure data integrity across platforms and implement backup mechanisms for critical data.",
+        "details": "Create a DataIntegrityService that maintains consistency between Shopify, Pinterest, and Google Sheets. Implement:\n\n1. Regular data reconciliation between platforms\n2. Automated backups of critical data\n3. Consistency checks before and after operations\n4. Recovery procedures for data inconsistencies\n\nSchedule daily backups of:\n- Google Sheets data (exported as CSV)\n- Campaign configurations\n- Pin mappings\n- Operation logs\n\nImplement a reconciliation process that runs weekly to verify:\n- Products in 'GENERATED' collection have corresponding pins\n- Pins have correct product links\n- Campaigns contain the correct pins\n- Google Sheets data matches actual status\n\nExample reconciliation logic:\n```javascript\nasync function reconcileData() {\n  // Get products from Shopify 'GENERATED' collection\n  const products = await shopifyService.getProductsByCollection(generatedCollectionId);\n  \n  // Get tracking data from Google Sheets\n  const trackingData = await sheetsService.getRows(trackingSheetId);\n  \n  // Find discrepancies\n  const missingInTracking = products.filter(p => !trackingData.some(t => t.productId === p.id));\n  const missingInShopify = trackingData.filter(t => !products.some(p => p.id === t.productId));\n  \n  // Resolve discrepancies\n  for (const product of missingInTracking) {\n    await sheetsService.appendRow(trackingSheetId, [product.id, product.title, 'GENERATED', 'UNKNOWN', '', '', new Date().toISOString()]);\n  }\n  \n  // Log other discrepancies for manual review\n  logger.warn(`Data reconciliation found ${missingInShopify.length} products in tracking but not in Shopify`);\n}\n```",
+        "testStrategy": "Create unit tests for reconciliation logic with simulated data discrepancies. Test backup and restore functionality. Verify consistency checks correctly identify and report issues.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement Multi-Store Support",
+        "description": "Extend the system to support multiple Shopify stores with independent configurations and tracking.",
+        "details": "Refactor the application to support multiple Shopify stores. Implement:\n\n1. Store-specific configuration management\n2. Isolated data storage for each store\n3. Parallel processing capabilities\n4. Store-specific scheduling\n\nCreate a configuration structure that supports multiple stores:\n```javascript\nconst storeConfigs = {\n  'store1': {\n    shopify: {\n      apiKey: 'key1',\n      apiSecret: 'secret1',\n      shop: 'store1.myshopify.com',\n      readyCollectionId: 'collection1',\n      generatedCollectionId: 'collection2'\n    },\n    pinterest: {\n      // Pinterest credentials\n    },\n    googleSheets: {\n      // Google Sheets IDs\n    },\n    schedule: {\n      morningRun: '0 5 * * *',\n      eveningRun: '0 17 * * *'\n    }\n  },\n  'store2': {\n    // Similar configuration\n  }\n};\n```\n\nImplement a StoreManager class that initializes and manages services for each store:\n```javascript\nclass StoreManager {\n  constructor(storeConfigs) {\n    this.stores = {};\n    \n    for (const [storeId, config] of Object.entries(storeConfigs)) {\n      this.stores[storeId] = {\n        shopifyService: new ShopifyService(config.shopify),\n        pinterestService: new PinterestService(config.pinterest),\n        sheetsService: new GoogleSheetsService(config.googleSheets),\n        scheduler: new SchedulerService(config.schedule)\n      };\n    }\n  }\n  \n  getStore(storeId) {\n    return this.stores[storeId];\n  }\n  \n  startAll() {\n    for (const store of Object.values(this.stores)) {\n      store.scheduler.start();\n    }\n  }\n}\n```",
+        "testStrategy": "Create unit tests for multi-store configuration loading. Test isolation between stores to ensure operations on one store don't affect others. Verify parallel processing works correctly.",
+        "priority": "low",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Performance Monitoring and Optimization",
+        "description": "Develop a system to monitor performance metrics, identify bottlenecks, and optimize the automation process.",
+        "details": "Create a PerformanceMonitoringService that tracks execution times, resource usage, and success rates. Implement:\n\n1. Execution time tracking for each operation\n2. API call counting and rate monitoring\n3. Success/failure statistics\n4. Performance trend analysis\n5. Automatic optimization suggestions\n\nUse a monitoring approach that combines:\n- Application-level metrics (execution time, memory usage)\n- External API metrics (call count, response time)\n- Business metrics (pins created, campaigns launched)\n\nImplement performance logging:\n```javascript\nclass PerformanceTracker {\n  async trackExecution(operationName, func) {\n    const startTime = Date.now();\n    try {\n      const result = await func();\n      const duration = Date.now() - startTime;\n      this.logPerformance(operationName, duration, true);\n      return result;\n    } catch (error) {\n      const duration = Date.now() - startTime;\n      this.logPerformance(operationName, duration, false);\n      throw error;\n    }\n  }\n  \n  logPerformance(operation, duration, success) {\n    // Log to Google Sheets or other storage\n  }\n  \n  generateReport() {\n    // Analyze performance data and generate optimization suggestions\n  }\n}\n```\n\nCreate a dashboard in Google Sheets that shows:\n- Average execution time per operation\n- Success rate over time\n- API call distribution\n- Bottleneck identification",
+        "testStrategy": "Create unit tests for performance tracking with simulated operations. Verify metrics are correctly recorded. Test report generation with sample performance data.",
+        "priority": "low",
+        "dependencies": [
+          7,
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Brand Voice Consistency System",
+        "description": "Develop a system to ensure AI-generated content maintains consistent brand voice across all pins and campaigns.",
+        "details": "Create a BrandVoiceService that ensures consistency in AI-generated content. Implement:\n\n1. Brand voice configuration with tone, style, and terminology preferences\n2. Content validation against brand guidelines\n3. Phrase and terminology standardization\n4. Feedback loop for content improvement\n\nDefine brand voice parameters in a configuration:\n```javascript\nconst brandVoiceConfig = {\n  tone: 'friendly', // friendly, professional, casual, luxury\n  style: 'concise', // concise, detailed, storytelling\n  terminology: {\n    preferred: ['hochwertig', 'premium', 'exklusiv'],\n    avoided: ['billig', 'günstig', 'preiswert']\n  },\n  maxTitleLength: 100,\n  maxDescriptionLength: 500,\n  callToAction: ['Jetzt kaufen', 'Entdecken Sie', 'Limitiertes Angebot']\n};\n```\n\nImplement content validation:\n```javascript\nclass BrandVoiceValidator {\n  constructor(config) {\n    this.config = config;\n  }\n  \n  validateTitle(title) {\n    const issues = [];\n    \n    if (title.length > this.config.maxTitleLength) {\n      issues.push(`Title exceeds maximum length of ${this.config.maxTitleLength} characters`);\n    }\n    \n    for (const term of this.config.terminology.avoided) {\n      if (title.toLowerCase().includes(term.toLowerCase())) {\n        issues.push(`Title contains avoided term: ${term}`);\n      }\n    }\n    \n    return {\n      valid: issues.length === 0,\n      issues\n    };\n  }\n  \n  // Similar methods for description validation\n}\n```\n\nIntegrate with the AI content generation to provide feedback and improve future generations.",
+        "testStrategy": "Create unit tests for brand voice validation with various content examples. Test with content that violates guidelines to verify detection. Verify integration with AI content generation.",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Implement Multi-Language Support Framework",
+        "description": "Develop a framework to support multiple languages beyond German, preparing for future expansion while optimizing for German market initially.",
+        "details": "Create a MultiLanguageService that provides language-specific functionality. Implement:\n\n1. Language configuration and detection\n2. Localized content templates\n3. Language-specific seasonal context\n4. Character limit handling for different languages\n\nWhile initially focusing on German, design the system to easily add more languages:\n```javascript\nconst languageConfigs = {\n  'de': {\n    locale: 'de-DE',\n    dateFormat: 'DD.MM.YYYY',\n    currencyFormat: '€{0}',\n    seasonalEvents: germanSeasonalEvents,\n    contentTemplates: {\n      pinTitle: '{productName} - {promotionText} | {price}',\n      pinDescription: '{productDescription}\\n\\n{seasonalContext}\\n\\n{callToAction}'\n    },\n    characterLimits: {\n      title: 100,\n      description: 500\n    }\n  },\n  'en': {\n    // English configuration for future use\n  }\n};\n```\n\nImplement language-specific content generation:\n```javascript\nclass LocalizedContentGenerator {\n  constructor(languageConfig) {\n    this.config = languageConfig;\n  }\n  \n  formatPrice(price) {\n    return this.config.currencyFormat.replace('{0}', price);\n  }\n  \n  generatePinTitle(product, seasonalContext) {\n    const template = this.config.contentTemplates.pinTitle;\n    return template\n      .replace('{productName}', product.title)\n      .replace('{promotionText}', seasonalContext.promotionText)\n      .replace('{price}', this.formatPrice(product.price));\n  }\n  \n  // Similar methods for description generation\n}\n```\n\nEnsure all user-facing content uses the appropriate language configuration.",
+        "testStrategy": "Create unit tests for localized content generation with sample product data. Test formatting functions for different languages. Verify character limit handling works correctly.",
+        "priority": "low",
+        "dependencies": [
+          5,
+          6,
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Develop Comprehensive Documentation and Admin Interface",
+        "description": "Create detailed documentation for the system and develop a simple admin interface for monitoring and manual intervention.",
+        "details": "Create comprehensive documentation and a basic admin interface. Implement:\n\n1. Technical documentation covering all components and APIs\n2. User guide for system configuration and maintenance\n3. Simple web-based admin interface for monitoring and control\n4. Troubleshooting guide and common issues\n\nDocumentation should include:\n- Architecture overview\n- Component descriptions\n- Configuration guide\n- API references\n- Deployment instructions\n- Maintenance procedures\n\nDevelop a simple admin interface using Express.js and a frontend framework like React (v18.2.0) or Vue.js (v3.3.4):\n```javascript\n// Admin API endpoints\napp.get('/api/status', (req, res) => {\n  res.json({\n    lastRun: scheduler.lastRunTime,\n    nextRun: scheduler.nextRunTime,\n    stats: {\n      productsProcessed: stats.productsProcessed,\n      pinsCreated: stats.pinsCreated,\n      campaignsCreated: stats.campaignsCreated,\n      errors: stats.errors\n    }\n  });\n});\n\napp.post('/api/run-now', (req, res) => {\n  automationWorkflow.execute()\n    .then(() => res.json({ success: true }))\n    .catch(error => res.status(500).json({ error: error.message }));\n});\n```\n\nThe admin interface should provide:\n- System status dashboard\n- Manual execution controls\n- Error logs and alerts\n- Configuration editor\n- Performance metrics visualization",
+        "testStrategy": "Review documentation for completeness and accuracy. Test admin interface functionality with various scenarios. Verify all API endpoints return correct data. Test manual execution controls.",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          7,
+          9,
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-23T11:25:53.650Z",
+      "updated": "2025-09-23T11:25:53.650Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

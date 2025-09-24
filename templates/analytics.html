@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Pinterest Feed Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <a href="/" class="mr-4">
+                        <i class="fas fa-arrow-left text-xl"></i>
+                    </a>
+                    <i class="fas fa-chart-line text-3xl mr-3"></i>
+                    <h1 class="text-2xl font-bold">Analytics</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshAnalytics()" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <i class="fas fa-chart-line text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Updates</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalUpdates">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <i class="fas fa-check-circle text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Success Rate</p>
+                        <p class="text-2xl font-bold text-gray-900" id="successRate">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                        <i class="fas fa-box text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Avg Products</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgProducts">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6 card-hover">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-orange-100 text-orange-600">
+                        <i class="fas fa-database text-xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Avg Feed Size</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgFeedSize">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Feed Update Trends -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Feed Update Trends</h3>
+                <canvas id="trendsChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Recent Performance -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Performance</h3>
+                <canvas id="performanceChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Detailed Analytics -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Detailed Analytics</h3>
+            <div id="detailedAnalytics" class="space-y-4">
+                <!-- Detailed analytics will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 text-center">
+            <i class="fas fa-spinner fa-spin text-3xl text-blue-600 mb-4"></i>
+            <p class="text-lg font-semibold">Loading analytics...</p>
+        </div>
+    </div>
+
+    <script>
+        let trendsChart, performanceChart;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAnalytics();
+        });
+
+        // Load analytics data
+        async function loadAnalytics() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/analytics');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateSummaryCards(data);
+                    createTrendsChart(data.trends);
+                    createPerformanceChart(data.recent);
+                    displayDetailedAnalytics(data);
+                } else {
+                    showError('Error loading analytics: ' + data.error);
+                }
+            } catch (error) {
+                showError('Error loading analytics');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Update summary cards
+        function updateSummaryCards(data) {
+            const totalUpdates = data.recent.length;
+            const successfulUpdates = data.recent.filter(update => update.status === 'success').length;
+            const successRate = totalUpdates > 0 ? Math.round((successfulUpdates / totalUpdates) * 100) : 0;
+            const avgProducts = totalUpdates > 0 ? Math.round(data.recent.reduce((sum, update) => sum + (update.products || 0), 0) / totalUpdates) : 0;
+            const avgFeedSize = totalUpdates > 0 ? Math.round(data.recent.reduce((sum, update) => sum + (update.size || 0), 0) / totalUpdates / 1024 / 1024) : 0;
+
+            document.getElementById('totalUpdates').textContent = totalUpdates;
+            document.getElementById('successRate').textContent = successRate + '%';
+            document.getElementById('avgProducts').textContent = avgProducts.toLocaleString();
+            document.getElementById('avgFeedSize').textContent = avgFeedSize + ' MB';
+        }
+
+        // Create trends chart
+        function createTrendsChart(trends) {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            
+            if (trendsChart) {
+                trendsChart.destroy();
+            }
+            
+            const labels = trends.map(trend => new Date(trend.date).toLocaleDateString());
+            const productsData = trends.map(trend => trend.avg_products || 0);
+            const sizeData = trends.map(trend => (trend.avg_size || 0) / 1024 / 1024);
+            
+            trendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Products',
+                        data: productsData,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Feed Size (MB)',
+                        data: sizeData,
+                        borderColor: 'rgb(16, 185, 129)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Products'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Feed Size (MB)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create performance chart
+        function createPerformanceChart(recent) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+            
+            const labels = recent.map(update => new Date(update.timestamp).toLocaleDateString());
+            const productsData = recent.map(update => update.products || 0);
+            const variantsData = recent.map(update => update.variants || 0);
+            
+            performanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Products',
+                        data: productsData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        borderWidth: 1
+                    }, {
+                        label: 'Variants',
+                        data: variantsData,
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Count'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Display detailed analytics
+        function displayDetailedAnalytics(data) {
+            const container = document.getElementById('detailedAnalytics');
+            
+            if (data.recent.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No analytics data available</p>';
+                return;
+            }
+            
+            const latest = data.recent[0];
+            const trends = data.trends;
+            
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-3">Latest Update</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Date:</span>
+                                <span>${new Date(latest.timestamp).toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Products:</span>
+                                <span>${(latest.products || 0).toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Variants:</span>
+                                <span>${(latest.variants || 0).toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Feed Size:</span>
+                                <span>${((latest.size || 0) / 1024 / 1024).toFixed(1)} MB</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-3">Trend Analysis</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Data Points:</span>
+                                <span>${trends.length} days</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Avg Daily Products:</span>
+                                <span>${trends.length > 0 ? Math.round(trends.reduce((sum, t) => sum + (t.avg_products || 0), 0) / trends.length).toLocaleString() : 0}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Avg Daily Size:</span>
+                                <span>${trends.length > 0 ? ((trends.reduce((sum, t) => sum + (t.avg_size || 0), 0) / trends.length) / 1024 / 1024).toFixed(1) : 0} MB</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Growth Trend:</span>
+                                <span class="${getGrowthTrend(trends) > 0 ? 'text-green-600' : 'text-red-600'}">
+                                    ${getGrowthTrend(trends) > 0 ? '↗ Growing' : '↘ Declining'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Calculate growth trend
+        function getGrowthTrend(trends) {
+            if (trends.length < 2) return 0;
+            
+            const first = trends[0].avg_products || 0;
+            const last = trends[trends.length - 1].avg_products || 0;
+            
+            return last - first;
+        }
+
+        // Refresh analytics
+        function refreshAnalytics() {
+            loadAnalytics();
+        }
+
+        // Show loading
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        // Hide loading
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // Show error
+        function showError(message) {
+            alert(message); // Simple error display
+        }
+    </script>
+</body>
+</html>

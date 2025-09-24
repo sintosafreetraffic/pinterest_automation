@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Features - Pinterest Trends</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .feature-card { background: #f8f9fa; padding: 20px; margin: 15px 0; border-radius: 6px; border-left: 4px solid #007bff; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .checkbox-group { display: flex; align-items: center; }
+        .checkbox-group input { width: auto; margin-right: 10px; }
+        .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .nav { text-align: center; margin: 20px 0; }
+        .nav a { margin: 0 10px; color: #007bff; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Enhanced Pinterest Features</h1>
+            <p>Configure Pinterest trends and audience insights integration</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/">🏠 Home</a>
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/customer_persona">👤 Customer Persona</a>
+            <a href="/trending_keywords">📈 Trending Keywords</a>
+        </div>
+        
+        <form method="POST" action="/enhanced_features/update">
+            <div class="feature-card">
+                <h3>🔧 Feature Configuration</h3>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="enhanced_enabled" name="enhanced_enabled" value="true" {{ "checked" if enhanced_enabled }}>
+                        <label for="enhanced_enabled">Enable Enhanced Features</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="trending_enabled" name="trending_enabled" value="true" {{ "checked" if trending_enabled }}>
+                        <label for="trending_enabled">Enable Trending Keywords</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="audience_enabled" name="audience_enabled" value="true" {{ "checked" if audience_enabled }}>
+                        <label for="audience_enabled">Enable Audience Insights</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="default_region">Default Region:</label>
+                    <select id="default_region" name="default_region">
+                        <option value="DE" {{ "selected" if default_region == "DE" }}>Germany (DE)</option>
+                        <option value="US" {{ "selected" if default_region == "US" }}>United States (US)</option>
+                        <option value="FR" {{ "selected" if default_region == "FR" }}>France (FR)</option>
+                        <option value="UK" {{ "selected" if default_region == "UK" }}>United Kingdom (UK)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <h3>📊 Current Status</h3>
+                <div class="status {{ 'success' if enhanced_enabled else 'warning' }}">
+                    Enhanced Features: {{ 'Enabled' if enhanced_enabled else 'Disabled' }}
+                </div>
+                <div class="status {{ 'success' if trending_enabled else 'warning' }}">
+                    Trending Keywords: {{ 'Enabled' if trending_enabled else 'Disabled' }}
+                </div>
+                <div class="status {{ 'success' if audience_enabled else 'warning' }}">
+                    Audience Insights: {{ 'Enabled' if audience_enabled else 'Disabled' }}
+                </div>
+            </div>
+            
+            <button type="submit" class="btn">💾 Save Configuration</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -455,9 +455,6 @@
                     processing.processed_products + ' / ' + processing.total_products;
                 document.getElementById('variants-processed').textContent = 
                     processing.processed_variants + ' / ' + processing.total_variants;
-                // Calculate progress percentage
-                const progress = processing.total_products > 0 ? 
-                    (processing.processed_products / processing.total_products) * 100 : 0;
                 document.getElementById('progress-percentage').textContent = 
                     Math.round(progress) + '%';
             } else {
