@@ -474,13 +474,8 @@ def main():
     logger.info("🚀 Starting Sheet1 Enhanced Scheduler")
     logger.info(f"⏰ Started at: {datetime.now()}")
     
-    # Check if today is Sunday (campaign creation day)
-    today = datetime.now()
-    is_sunday = today.weekday() == 6  # Monday is 0, Sunday is 6
-    logger.info(f"📅 Today is {today.strftime('%A')} - Campaign creation {'enabled' if is_sunday else 'disabled'}")
-    
     try:
-        # Step 1: Post pins for empty rows (runs twice daily)
+        # Step 1: Post pins for empty rows
         logger.info("📌 Step 1: Posting pins for empty rows...")
         pin_success = post_pins_to_sheet1(max_pins=20, delay_between_posts=60)  # Conservative settings
         
@@ -489,18 +484,14 @@ def main():
         else:
             logger.info("⚠️ Step 1: Pin posting had issues (rate limiting expected)")
         
-        # Step 2: Create campaigns for posted pins (only on Sundays)
-        if is_sunday:
-            logger.info("🎯 Step 2: Creating campaigns for posted pins (Sunday campaign creation)...")
-            campaign_success = create_campaigns_for_sheet1()
-            
-            if campaign_success:
-                logger.info("✅ Step 2 completed: Campaigns created successfully")
-            else:
-                logger.info("⚠️ Step 2: Campaign creation had issues")
+        # Step 2: Create campaigns for posted pins (always run, even if pin posting was rate limited)
+        logger.info("🎯 Step 2: Creating campaigns for posted pins...")
+        campaign_success = create_campaigns_for_sheet1()
+        
+        if campaign_success:
+            logger.info("✅ Step 2 completed: Campaigns prepared successfully")
         else:
-            logger.info("⏭️ Step 2: Skipped campaign creation (not Sunday)")
-            logger.info("📅 Campaign creation is scheduled for Sundays only")
+            logger.info("⚠️ Step 2: Campaign creation had issues")
         
         logger.info("🎉 Sheet1 Enhanced Scheduler completed successfully!")
         

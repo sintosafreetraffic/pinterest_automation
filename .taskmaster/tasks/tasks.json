@@ -2,223 +2,275 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
-        "title": "Setup Project Infrastructure",
-        "description": "Initialize the project repository with necessary dependencies, configuration files, and folder structure for the Shopify-Pinterest automation system.",
-        "details": "Create a Node.js project using Express.js (v4.18.2) as the backend framework. Set up the following structure:\n1. `/src` - Main source code\n2. `/config` - Configuration files\n3. `/services` - Service modules\n4. `/models` - Data models\n5. `/controllers` - Route controllers\n6. `/utils` - Utility functions\n7. `/tests` - Test files\n\nInstall key dependencies:\n- axios@1.4.0 for API requests\n- dotenv@16.3.1 for environment variables\n- googleapis@118.0.0 for Google Sheets integration\n- shopify-api-node@3.12.5 for Shopify API\n- pinterest-node-api@0.1.0 for Pinterest API\n- node-cron@3.0.2 for scheduling\n- winston@3.9.0 for logging\n- jest@29.5.0 for testing\n\nCreate a .env.example file with placeholders for all required API keys and credentials.",
-        "testStrategy": "Verify project structure is correctly set up. Run npm install to ensure all dependencies install without errors. Validate configuration loading with a simple test script.",
+        "id": 16,
+        "title": "Analyze Track AI System Architecture",
+        "description": "Perform a comprehensive analysis of the existing Track AI system to understand its architecture, data models, and integration points for Pinterest integration.",
+        "details": "Review the Track AI codebase in the `/track-ai/` directory to understand its architecture, database schema, and API endpoints. Document the tracking pixel implementation, data collection methods, and analytics processing pipeline. Identify integration points for Pinterest data. Create a system diagram showing how Track AI currently processes data from other platforms (Meta, TikTok) to ensure consistent implementation for Pinterest. Use tools like draw.io or Lucidchart for documentation. Focus on understanding how conversion tracking and attribution are currently handled.",
+        "testStrategy": "Create a comprehensive documentation of Track AI architecture with diagrams. Validate understanding through code review sessions with the Track AI team. Verify integration points by tracing data flow for existing platforms.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 2,
-        "title": "Implement Shopify API Integration",
-        "description": "Develop the core Shopify integration module to extract product data from collections and track inventory status.",
-        "details": "Create a ShopifyService class using the shopify-api-node package. Implement the following methods:\n\n1. `authenticate()` - Set up API credentials using Admin API access token\n2. `getProductsByCollection(collectionId)` - Fetch products from a specific collection\n3. `moveProductBetweenCollections(productId, sourceCollectionId, targetCollectionId)` - Move products between collections\n4. `getProductInventory(productId)` - Get real-time inventory data\n5. `getProductStatus(productId)` - Check product status (active, draft, etc.)\n\nUse pagination to handle large collections (1000+ products). Implement rate limiting according to Shopify's API guidelines (2 requests per second). Store collection IDs for 'READY FOR PINTEREST' and 'GENERATED' in configuration.\n\nExample usage:\n```javascript\nconst shopifyService = new ShopifyService(config);\nconst products = await shopifyService.getProductsByCollection('ready-for-pinterest-collection-id');\n```",
-        "testStrategy": "Create unit tests with Jest mocking the Shopify API responses. Test each method with valid and invalid inputs. Verify pagination works correctly for large collections. Test error handling for API failures.",
+        "id": 17,
+        "title": "Design UTM Parameter Schema for Pinterest",
+        "description": "Define a standardized UTM parameter schema for Pinterest campaigns that will enable proper attribution and tracking in the Track AI system.",
+        "details": "Create a comprehensive UTM parameter schema for Pinterest traffic that includes: utm_source=pinterest, utm_medium=social, utm_campaign={campaign_name}, utm_content={pin_id}, and utm_term={keyword}. Research Pinterest's API documentation to identify all available campaign metadata that can be included in tracking. Ensure the schema captures campaign ID, ad ID, and pin ID as specified in Phase 2 requirements. Document how these parameters will map to Track AI's attribution model. Consider implementing a URL shortener if lengthy parameters affect user experience. Use the latest Google Analytics 4 best practices for UTM parameter structure to ensure compatibility with multiple analytics systems.",
+        "testStrategy": "Create test URLs with the defined UTM parameters and verify they are correctly parsed by Track AI. Test with various Pinterest campaign types to ensure the schema is comprehensive. Validate that all required attribution data is captured correctly.",
         "priority": "high",
         "dependencies": [
-          1
+          16
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 3,
-        "title": "Develop Pinterest API Integration",
-        "description": "Create the Pinterest API integration module for pin creation, board management, and campaign creation.",
-        "details": "Implement a PinterestService class using the pinterest-node-api package or Pinterest's v5 API directly with axios if needed. Include methods for:\n\n1. `authenticate()` - Set up OAuth2 authentication\n2. `createPin(boardId, imageUrl, title, description, link, ctaText)` - Create a new pin with CTA 'On Sale'\n3. `getBoards()` - Retrieve available boards\n4. `createBoard(name, description)` - Create a new board if needed\n5. `createCampaign(name, dailyBudget, pinIds)` - Create a campaign with specified pins and budget\n\nImplement rate limiting to comply with Pinterest's API guidelines (1000 requests per day). Add exponential backoff for retries on 429 errors.\n\nEnsure all pins are created with the CTA 'On Sale' as specified in the PRD. Set daily budget to 10 euros per campaign.\n\nExample usage:\n```javascript\nconst pinterestService = new PinterestService(config);\nconst pinId = await pinterestService.createPin(boardId, product.imageUrl, pinTitle, pinDescription, product.url, 'On Sale');\n```",
-        "testStrategy": "Create unit tests with Jest mocking Pinterest API responses. Test pin creation with various product data. Verify campaign creation with the correct budget. Test rate limiting and retry mechanisms.",
+        "id": 18,
+        "title": "Implement Track AI Pixel Integration for Pinterest URLs",
+        "description": "Modify the Pinterest automation system to include Track AI tracking pixels in all destination URLs for proper conversion tracking.",
+        "details": "Extend the Pinterest URL generation function to include Track AI tracking pixel parameters. Implement using the latest Track AI JavaScript SDK (v2.x) which supports asynchronous loading for better performance. The implementation should: 1) Add the Track AI pixel code to the destination URL query parameters, 2) Ensure the pixel fires on page load for Pinterest traffic, 3) Pass Pinterest-specific metadata to Track AI for attribution. Use URL encoding to handle special characters in parameters. Implement a fallback mechanism if tracking parameters exceed URL length limits. Test with various Pinterest campaign types and ad formats to ensure compatibility. Consider implementing server-side tracking as a more reliable alternative to client-side pixels, using Track AI's Server API (if available).",
+        "testStrategy": "Create test pins with tracking pixels and verify pixel firing using Track AI debugging tools. Test across different browsers and devices to ensure compatibility. Validate that conversion data is correctly attributed to Pinterest in the Track AI dashboard.",
         "priority": "high",
         "dependencies": [
-          1
+          16,
+          17
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 4,
-        "title": "Implement Google Sheets Integration",
-        "description": "Develop the Google Sheets integration for centralized data storage, tracking, and campaign performance monitoring.",
-        "details": "Create a GoogleSheetsService class using the googleapis package. Implement methods for:\n\n1. `authenticate()` - Set up service account authentication\n2. `createSheet(title)` - Create a new sheet if needed\n3. `appendRow(sheetId, rowData)` - Add new data rows\n4. `updateRow(sheetId, rowIndex, rowData)` - Update existing rows\n5. `getRows(sheetId, range)` - Retrieve data from specified range\n\nCreate a data schema for tracking products with columns:\n- Product ID\n- Title\n- Collection Status\n- Pin Status (Created/Failed)\n- Pin ID\n- Campaign ID\n- Last Updated\n\nImplement a separate sheet for campaign tracking with:\n- Campaign ID\n- Campaign Name\n- Products Count\n- Budget\n- Start Date\n- Performance Metrics\n\nUse batch operations where possible to minimize API calls.\n\nExample usage:\n```javascript\nconst sheetsService = new GoogleSheetsService(config);\nawait sheetsService.appendRow(productTrackingSheetId, [product.id, product.title, 'READY', 'PENDING', '', '', new Date().toISOString()]);\n```",
-        "testStrategy": "Create unit tests with Jest mocking Google Sheets API responses. Test data writing and reading operations. Verify batch operations work correctly. Test error handling and retry mechanisms.",
+        "id": 19,
+        "title": "Modify Pinterest Pin URL Generator",
+        "description": "Update the Pinterest pin creation system to automatically append tracking parameters to all destination URLs.",
+        "details": "Modify the existing pin posting system to include tracking parameters in all destination URLs. Implement a URL builder function that takes a base Shopify product URL and appends: 1) Campaign ID from Pinterest API, 2) Ad ID from Pinterest campaign, 3) Pin ID once created, 4) UTM parameters based on the schema defined in task 17. Use the Pinterest API v5 to retrieve campaign and ad metadata. Implement URL validation to ensure generated URLs are valid and don't exceed Pinterest's URL length limits (2,000 characters). Add error handling for cases where Pinterest API doesn't return expected campaign data. Consider implementing a URL shortening service integration (like Bitly API v4) for long URLs. Ensure compatibility with Pinterest's URL requirements and avoid any characters that might cause issues with their system.",
+        "testStrategy": "Create test pins with the updated URL generator and verify all parameters are correctly appended. Test with various product URLs, including those with existing query parameters. Validate tracking works by checking Track AI data for test conversions.",
         "priority": "high",
         "dependencies": [
-          1
+          17,
+          18
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 5,
-        "title": "Develop DeepSeek AI Integration for Content Generation",
-        "description": "Implement integration with DeepSeek AI for generating pin titles and descriptions with seasonal context awareness and German language optimization.",
-        "details": "Create an AIContentService class that integrates with DeepSeek AI API. Implement methods for:\n\n1. `authenticate()` - Set up API authentication\n2. `generatePinTitle(productData, seasonalContext)` - Generate optimized pin titles\n3. `generatePinDescription(productData, seasonalContext)` - Generate optimized pin descriptions\n4. `getSeasonalContext()` - Determine current seasonal context with 6-week lookahead for German market\n\nUse DeepSeek's latest model (Coder-33B or newer) with appropriate prompting to ensure brand voice consistency. Include seasonal context in prompts, such as upcoming holidays, seasons, or events in Germany.\n\nImplement caching to avoid regenerating content for the same product in the same seasonal context.\n\nExample prompt template:\n```\nGenerate a compelling Pinterest pin title in German for the following product, optimized for the upcoming {seasonalEvent} in Germany. The title should be concise (max 100 characters) and include a call to action.\n\nProduct: {productName}\nCategory: {productCategory}\nKey Features: {productFeatures}\nPrice: {productPrice}\n```\n\nExample usage:\n```javascript\nconst aiService = new AIContentService(config);\nconst seasonalContext = await aiService.getSeasonalContext();\nconst pinTitle = await aiService.generatePinTitle(product, seasonalContext);\n```",
-        "testStrategy": "Create unit tests with Jest mocking DeepSeek AI API responses. Test content generation with various product types. Verify seasonal context is correctly incorporated. Test caching mechanism. Manually review sample outputs for quality and brand consistency.",
+        "id": 20,
+        "title": "Configure Track AI for Pinterest Traffic Recognition",
+        "description": "Configure the Track AI system to properly recognize, categorize, and analyze Pinterest traffic based on the implemented tracking parameters.",
+        "details": "Update Track AI configuration to recognize Pinterest as a traffic source with proper attribution. This includes: 1) Adding Pinterest as a recognized platform in Track AI's source configuration, 2) Mapping UTM parameters to Track AI's internal data model, 3) Configuring conversion attribution rules for Pinterest traffic. Implement custom event tracking for Pinterest-specific interactions using Track AI's event tracking API. Set up proper segmentation for Pinterest traffic by campaign, ad group, and pin ID. Configure Track AI's attribution model to properly handle Pinterest's typical conversion patterns, which may differ from other platforms. Use Track AI's configuration API or update configuration files as appropriate. Consider implementing multi-touch attribution models that account for Pinterest's position in the customer journey, which often occurs early in the discovery phase.",
+        "testStrategy": "Send test traffic with Pinterest UTM parameters and verify it's correctly identified in Track AI. Test conversion tracking by completing test purchases from Pinterest traffic. Validate attribution is working correctly by comparing Track AI data with Pinterest Analytics.",
         "priority": "high",
         "dependencies": [
-          1
+          16,
+          17,
+          18
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 6,
-        "title": "Implement Seasonal Context Intelligence",
-        "description": "Develop a system to track and predict seasonal events and trends specific to the German market with a 6-week lookahead.",
-        "details": "Create a SeasonalContextService that provides upcoming seasonal information for the German market. Implement:\n\n1. A calendar of German holidays, events, and seasonal trends\n2. 6-week lookahead functionality to prepare content in advance\n3. Categorization of events by type (holiday, shopping event, seasonal change, etc.)\n4. Relevance scoring for different product categories\n\nUse a combination of static data and potentially an external API like Calendarific (https://calendarific.com/) for holiday data. Include major German shopping events like:\n- Winter/Summer sales periods\n- Black Friday/Cyber Monday\n- Christmas markets opening\n- Back to school season\n- Oktoberfest\n- Regional events\n\nStore the data in a structured format:\n```javascript\nconst seasonalEvents = [\n  {\n    name: 'Weihnachten',\n    startDate: '2023-12-24',\n    endDate: '2023-12-26',\n    type: 'holiday',\n    keywords: ['geschenk', 'fest', 'familie', 'weihnachtsgeschenk'],\n    relevantCategories: ['clothing', 'electronics', 'home', 'toys']\n  },\n  // More events...\n];\n```\n\nImplement a method to get the most relevant upcoming events for a given product category.",
-        "testStrategy": "Create unit tests to verify the 6-week lookahead functionality works correctly. Test with different dates to ensure appropriate seasonal events are returned. Verify relevance scoring for different product categories.",
+        "id": 21,
+        "title": "Implement Conversion Tracking for Pinterest Campaigns",
+        "description": "Set up conversion tracking in Track AI to accurately measure sales and other conversion events from Pinterest traffic.",
+        "details": "Implement conversion tracking for Pinterest traffic using Track AI's conversion tracking API. Configure Track AI to track key conversion events including: product views, add to cart, checkout initiation, and purchase completion. Set up proper attribution windows based on Pinterest's recommended settings (30-day click, 24-hour view). Implement server-side conversion validation using Shopify's webhook API to ensure accuracy. Create conversion funnels specific to Pinterest traffic to analyze drop-off points. Use Track AI's latest conversion tracking features including cross-device tracking if available. Consider implementing enhanced conversions with hashed customer data for improved accuracy, following privacy best practices and regulations like GDPR and CCPA. Implement value tracking to capture revenue data for ROI calculations.",
+        "testStrategy": "Complete test purchases originating from Pinterest traffic and verify they are correctly attributed in Track AI. Test different conversion paths to ensure all scenarios are tracked correctly. Validate conversion data matches between Shopify analytics and Track AI.",
+        "priority": "high",
+        "dependencies": [
+          18,
+          19,
+          20
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Integrate Pinterest Data with Track AI Dashboard",
+        "description": "Connect Pinterest performance data with the Track AI dashboard to provide unified analytics across all advertising platforms.",
+        "details": "Integrate Pinterest performance metrics into the Track AI dashboard using Track AI's dashboard API. Implement data connectors to pull key metrics from Pinterest's API including: impressions, clicks, CTR, spend, and Pinterest-specific engagement metrics (saves, closeups). Use Pinterest's Marketing API v5 for the most accurate and comprehensive data. Set up automated data synchronization to run on the existing cron schedule (5 AM and 5 PM UTC). Implement proper error handling and retry logic for API failures. Create data transformation functions to normalize Pinterest data to match Track AI's data model. Consider implementing real-time data streaming for near-instant updates if Track AI supports it. Ensure the integration respects Pinterest API rate limits to avoid throttling issues.",
+        "testStrategy": "Verify Pinterest data appears correctly in the Track AI dashboard. Compare metrics between Pinterest Analytics and Track AI to ensure accuracy. Test the data refresh process to confirm it works with the cron schedule.",
         "priority": "medium",
         "dependencies": [
-          1,
-          5
+          20,
+          21
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 7,
-        "title": "Implement Automated Scheduling System",
-        "description": "Develop the cron job scheduling system to run automation tasks at 5 AM and 5 PM UTC daily with proper error handling and recovery.",
-        "details": "Create a SchedulerService using node-cron to manage scheduled tasks. Implement:\n\n1. Configuration for two daily runs (5 AM and 5 PM UTC)\n2. Task queue management to ensure tasks run in the correct order\n3. Error handling with automatic retries\n4. Logging of execution status\n5. Notification system for critical failures\n\nUse the following cron expressions:\n- Morning run: `0 5 * * *`\n- Evening run: `0 17 * * *`\n\nImplement a workflow system that executes these steps in sequence:\n1. Fetch products from 'READY FOR PINTEREST' collection\n2. Generate content for each product\n3. Create pins on Pinterest\n4. Group products into campaigns (10 products per campaign)\n5. Create campaigns with 10 euro daily budget\n6. Move products to 'GENERATED' collection\n7. Update tracking in Google Sheets\n\nAdd timeout handling and the ability to resume from failures. Use a state machine approach to track progress.\n\nExample usage:\n```javascript\nconst scheduler = new SchedulerService(config);\nscheduler.registerTask('morningRun', '0 5 * * *', async () => {\n  await automationWorkflow.execute();\n});\nscheduler.start();\n```",
-        "testStrategy": "Create unit tests for the scheduler with mocked time. Test the complete workflow execution with simulated API responses. Verify error handling and recovery mechanisms. Test the state machine for proper state transitions.",
-        "priority": "high",
-        "dependencies": [
-          1,
-          2,
-          3,
-          4,
-          5
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 8,
-        "title": "Develop Campaign Management System",
-        "description": "Create a system to automatically group products into campaigns, manage campaign budgets, and track performance.",
-        "details": "Implement a CampaignService that handles the creation and management of Pinterest campaigns. Include:\n\n1. Logic to group products into campaigns (10 products per campaign)\n2. Campaign naming convention (e.g., 'Summer_Campaign_2023_06_14_1')\n3. Budget management (10 euro daily budget per campaign)\n4. Campaign status tracking\n5. Performance data collection\n\nImplement intelligent grouping based on product categories or seasonal relevance. Create a database schema or Google Sheets structure to track:\n- Campaign ID\n- Campaign Name\n- Product IDs included\n- Creation Date\n- Budget\n- Status\n- Performance Metrics\n\nExample campaign creation logic:\n```javascript\nasync function createCampaigns(products) {\n  // Group products into batches of 10\n  const productBatches = chunk(products, 10);\n  \n  for (const batch of productBatches) {\n    const campaignName = `Campaign_${new Date().toISOString().split('T')[0]}_${uuidv4().substring(0, 8)}`;\n    const pinIds = batch.map(product => product.pinId);\n    \n    const campaignId = await pinterestService.createCampaign(campaignName, 10, pinIds);\n    \n    // Update tracking\n    await sheetsService.appendRow(campaignSheetId, [\n      campaignId,\n      campaignName,\n      batch.length,\n      10,\n      new Date().toISOString(),\n      'Active'\n    ]);\n  }\n}\n```",
-        "testStrategy": "Create unit tests for campaign grouping logic. Test campaign creation with various product sets. Verify budget setting is correct. Test tracking updates in Google Sheets.",
+        "id": 23,
+        "title": "Implement Cross-Platform Attribution Model",
+        "description": "Develop a cross-platform attribution model in Track AI that accurately tracks customer journeys across Pinterest, Meta, TikTok, and other channels.",
+        "details": "Implement a sophisticated cross-platform attribution model using Track AI's attribution API. Configure multi-touch attribution rules that appropriately weight touchpoints across different platforms. Implement both first-click and last-click attribution models for comparison. Use machine learning-based attribution if Track AI supports it (look for ML attribution features in the `/track-ai/` directory). Create customer journey mapping that visualizes paths from Pinterest to conversion, including interactions with other platforms. Implement cross-device tracking using Track AI's user identification features. Consider implementing advanced attribution models like time-decay, position-based, or data-driven attribution depending on Track AI's capabilities. Ensure the model accounts for Pinterest's typical position in the discovery phase of the customer journey.",
+        "testStrategy": "Create test customer journeys that include multiple platforms including Pinterest. Verify attribution is correctly calculated according to the defined model. Compare different attribution models to ensure they provide meaningful insights.",
         "priority": "medium",
         "dependencies": [
-          3,
-          4
+          21,
+          22
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
-        "id": 9,
-        "title": "Implement Error Handling and Recovery System",
-        "description": "Develop a robust error handling and recovery system to manage API failures, rate limiting, and ensure data integrity.",
-        "details": "Create an ErrorHandlingService that provides consistent error management across the application. Implement:\n\n1. Centralized error logging with Winston\n2. Categorization of errors (API failure, rate limiting, authentication, etc.)\n3. Automatic retry strategies with exponential backoff\n4. Circuit breaker pattern for external services\n5. Transaction-like operations that can be rolled back\n\nUse the following retry strategy:\n- Initial retry after 1 second\n- Exponential backoff (2^n seconds)\n- Maximum of 5 retries\n- Jitter to prevent thundering herd problem\n\nImplement the circuit breaker using a library like opossum:\n```javascript\nconst circuitBreaker = new CircuitBreaker(apiCall, {\n  failureThreshold: 3,\n  resetTimeout: 30000,\n  timeout: 5000\n});\n```\n\nCreate a transaction-like system for multi-step operations:\n```javascript\nconst transaction = new Transaction();\ntransaction.addStep('createPin', async () => { /* create pin */ }, async () => { /* rollback */ });\ntransaction.addStep('updateSheet', async () => { /* update sheet */ }, async () => { /* rollback */ });\nawait transaction.execute();\n```",
-        "testStrategy": "Create unit tests for retry mechanisms with simulated failures. Test circuit breaker behavior under various failure scenarios. Verify transaction rollback works correctly when a step fails.",
-        "priority": "high",
+        "id": 24,
+        "title": "Create Pinterest-Specific Analytics Widgets",
+        "description": "Develop specialized analytics widgets for the Track AI dashboard that highlight Pinterest-specific metrics and performance indicators.",
+        "status": "done",
         "dependencies": [
-          1,
-          2,
-          3,
-          4
+          22,
+          23
         ],
-        "status": "pending",
-        "subtasks": []
+        "priority": "medium",
+        "details": "Create custom analytics widgets for the Track AI dashboard focused on Pinterest performance. Implement seven core widgets: 1) Pinterest campaign ROI comparison, 2) Pin performance analysis, 3) Pinterest audience demographics, 4) Pinterest-to-purchase funnel visualization, 5) Discovery Phase Metrics, 6) Trend Analysis, and 7) Cross-Platform Pinterest Comparison. Use Track AI's widget API with Chart.js v4 for interactive visualizations. Ensure widgets are responsive and work on mobile devices. Implement comprehensive data structures and error handling. Create proper documentation and testing suite. Integrate with Pinterest Dashboard Integration and Cross-Platform Attribution systems.",
+        "testStrategy": "Test widgets with real Pinterest data to ensure they display correctly. Create comprehensive test suite in test_pinterest_analytics_widgets.py. Verify all interactive features work as expected. Test responsiveness on different screen sizes and devices. Implement mock data generation for testing environments.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Core Analytics Widgets",
+            "description": "Create the seven core Pinterest analytics widgets for the Track AI dashboard",
+            "status": "done",
+            "dependencies": [],
+            "details": "Implemented: Campaign ROI Comparison Widget (bar chart), Pin Performance Analysis Widget (scatter plot), Audience Demographics Widget (pie chart), Purchase Funnel Visualization Widget (funnel chart), Discovery Phase Metrics Widget (line chart), Trend Analysis Widget (area chart), and Cross-Platform Pinterest Comparison Widget (multi-bar chart).",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Technical Implementation",
+            "description": "Create the technical infrastructure for Pinterest analytics widgets",
+            "status": "done",
+            "dependencies": [],
+            "details": "Created pinterest_analytics_widgets.py with PinterestAnalyticsWidgets class. Implemented PinterestWidgetData data structure for widget metadata. Integrated with Pinterest Dashboard Integration and Cross-Platform Attribution systems. Added comprehensive error handling and fallback mechanisms. Created mock data generation for testing environments.",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Testing & Documentation",
+            "description": "Create comprehensive testing suite and documentation for Pinterest analytics widgets",
+            "status": "done",
+            "dependencies": [],
+            "details": "Created comprehensive test suite in test_pinterest_analytics_widgets.py. Generated detailed documentation in PINTEREST_ANALYTICS_WIDGETS_DOCUMENTATION.md. Fixed syntax errors in Pinterest conversion tracking and Track AI config files. Implemented convenience functions for easy integration.",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Feature Implementation",
+            "description": "Implement key features for Pinterest analytics widgets",
+            "status": "done",
+            "dependencies": [],
+            "details": "Implemented responsive design for mobile devices, interactive visualizations using Chart.js v4, real-time data integration with Track AI, cross-platform attribution analysis, Pinterest-specific metrics and KPIs, customer persona integration, trending keywords analysis, and multi-touch attribution models.",
+            "testStrategy": ""
+          }
+        ]
       },
       {
-        "id": 10,
-        "title": "Implement Data Integrity and Backup System",
-        "description": "Develop a system to ensure data integrity across platforms and implement backup mechanisms for critical data.",
-        "details": "Create a DataIntegrityService that maintains consistency between Shopify, Pinterest, and Google Sheets. Implement:\n\n1. Regular data reconciliation between platforms\n2. Automated backups of critical data\n3. Consistency checks before and after operations\n4. Recovery procedures for data inconsistencies\n\nSchedule daily backups of:\n- Google Sheets data (exported as CSV)\n- Campaign configurations\n- Pin mappings\n- Operation logs\n\nImplement a reconciliation process that runs weekly to verify:\n- Products in 'GENERATED' collection have corresponding pins\n- Pins have correct product links\n- Campaigns contain the correct pins\n- Google Sheets data matches actual status\n\nExample reconciliation logic:\n```javascript\nasync function reconcileData() {\n  // Get products from Shopify 'GENERATED' collection\n  const products = await shopifyService.getProductsByCollection(generatedCollectionId);\n  \n  // Get tracking data from Google Sheets\n  const trackingData = await sheetsService.getRows(trackingSheetId);\n  \n  // Find discrepancies\n  const missingInTracking = products.filter(p => !trackingData.some(t => t.productId === p.id));\n  const missingInShopify = trackingData.filter(t => !products.some(p => p.id === t.productId));\n  \n  // Resolve discrepancies\n  for (const product of missingInTracking) {\n    await sheetsService.appendRow(trackingSheetId, [product.id, product.title, 'GENERATED', 'UNKNOWN', '', '', new Date().toISOString()]);\n  }\n  \n  // Log other discrepancies for manual review\n  logger.warn(`Data reconciliation found ${missingInShopify.length} products in tracking but not in Shopify`);\n}\n```",
-        "testStrategy": "Create unit tests for reconciliation logic with simulated data discrepancies. Test backup and restore functionality. Verify consistency checks correctly identify and report issues.",
+        "id": 25,
+        "title": "Implement ROI Calculation for Pinterest Campaigns",
+        "description": "Develop ROI calculation functionality that accurately measures the return on investment for Pinterest campaigns based on conversion data.",
+        "details": "Implement comprehensive ROI calculation for Pinterest campaigns using Track AI's analytics API. Create formulas that calculate: 1) Cost per acquisition (CPA), 2) Return on ad spend (ROAS), 3) Lifetime value (LTV) attribution, 4) Profit margin analysis. Pull cost data from Pinterest's Marketing API and revenue data from Shopify's API. Implement time-based ROI analysis to account for Pinterest's typically longer conversion cycles. Create ROI comparison tools to evaluate Pinterest against other platforms. Consider implementing predictive ROI modeling to forecast future performance. Use advanced attribution models to accurately distribute revenue across touchpoints. Implement segment-based ROI analysis to identify high-performing customer segments and product categories.",
+        "testStrategy": "Calculate ROI manually for test campaigns and compare with the automated calculations to verify accuracy. Test with various campaign types and conversion patterns to ensure the model is robust.",
         "priority": "medium",
         "dependencies": [
-          2,
-          3,
-          4
+          21,
+          22,
+          23
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 11,
-        "title": "Implement Multi-Store Support",
-        "description": "Extend the system to support multiple Shopify stores with independent configurations and tracking.",
-        "details": "Refactor the application to support multiple Shopify stores. Implement:\n\n1. Store-specific configuration management\n2. Isolated data storage for each store\n3. Parallel processing capabilities\n4. Store-specific scheduling\n\nCreate a configuration structure that supports multiple stores:\n```javascript\nconst storeConfigs = {\n  'store1': {\n    shopify: {\n      apiKey: 'key1',\n      apiSecret: 'secret1',\n      shop: 'store1.myshopify.com',\n      readyCollectionId: 'collection1',\n      generatedCollectionId: 'collection2'\n    },\n    pinterest: {\n      // Pinterest credentials\n    },\n    googleSheets: {\n      // Google Sheets IDs\n    },\n    schedule: {\n      morningRun: '0 5 * * *',\n      eveningRun: '0 17 * * *'\n    }\n  },\n  'store2': {\n    // Similar configuration\n  }\n};\n```\n\nImplement a StoreManager class that initializes and manages services for each store:\n```javascript\nclass StoreManager {\n  constructor(storeConfigs) {\n    this.stores = {};\n    \n    for (const [storeId, config] of Object.entries(storeConfigs)) {\n      this.stores[storeId] = {\n        shopifyService: new ShopifyService(config.shopify),\n        pinterestService: new PinterestService(config.pinterest),\n        sheetsService: new GoogleSheetsService(config.googleSheets),\n        scheduler: new SchedulerService(config.schedule)\n      };\n    }\n  }\n  \n  getStore(storeId) {\n    return this.stores[storeId];\n  }\n  \n  startAll() {\n    for (const store of Object.values(this.stores)) {\n      store.scheduler.start();\n    }\n  }\n}\n```",
-        "testStrategy": "Create unit tests for multi-store configuration loading. Test isolation between stores to ensure operations on one store don't affect others. Verify parallel processing works correctly.",
+        "id": 26,
+        "title": "Implement Customer Journey Tracking from Pinterest",
+        "description": "Develop functionality to track and visualize the complete customer journey from Pinterest discovery to conversion, including interactions with other platforms.",
+        "details": "Implement customer journey tracking that follows users from Pinterest to conversion. Use Track AI's user tracking API to create unified customer profiles. Implement cookie or local storage-based user identification that works across platforms. Create journey visualization tools that show the path from Pinterest to purchase, including touchpoints on other platforms. Implement funnel analysis specific to Pinterest traffic to identify drop-off points. Use Track AI's session stitching capabilities to connect user interactions across devices and platforms. Consider implementing privacy-friendly tracking methods that comply with GDPR, CCPA, and other regulations. Use hashed identifiers rather than personal information where possible. Implement journey segmentation to identify common patterns and optimize the path to conversion.",
+        "testStrategy": "Create test user journeys starting from Pinterest and verify they are correctly tracked and visualized. Test cross-device journeys to ensure proper tracking. Validate that privacy requirements are met in the implementation.",
+        "priority": "medium",
+        "dependencies": [
+          21,
+          23
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Implement Demographic Analysis for Pinterest Traffic",
+        "description": "Develop demographic analysis capabilities in Track AI to understand the characteristics of Pinterest traffic and how they compare to other platforms.",
+        "details": "Implement demographic analysis for Pinterest traffic using Track AI's audience analysis features. Pull demographic data from Pinterest's Audience Insights API if available. Create demographic segmentation by age, gender, location, interests, and device type. Implement comparison tools to contrast Pinterest demographics with other platforms. Create visualization widgets for demographic insights on the Track AI dashboard. Consider implementing predictive audience modeling to identify high-value demographic segments. Use Track AI's segmentation API to create targetable audience segments based on demographic analysis. Ensure all demographic data collection complies with privacy regulations and Pinterest's terms of service. Implement anonymous aggregate analysis rather than individual user profiling where appropriate.",
+        "testStrategy": "Analyze test Pinterest traffic and verify demographic data is correctly captured and displayed. Compare demographic data with Pinterest's native analytics to ensure accuracy. Test segmentation features to confirm they work as expected.",
         "priority": "low",
         "dependencies": [
-          1,
-          2,
-          3,
-          4,
-          7
+          22,
+          26
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 12,
-        "title": "Implement Performance Monitoring and Optimization",
-        "description": "Develop a system to monitor performance metrics, identify bottlenecks, and optimize the automation process.",
-        "details": "Create a PerformanceMonitoringService that tracks execution times, resource usage, and success rates. Implement:\n\n1. Execution time tracking for each operation\n2. API call counting and rate monitoring\n3. Success/failure statistics\n4. Performance trend analysis\n5. Automatic optimization suggestions\n\nUse a monitoring approach that combines:\n- Application-level metrics (execution time, memory usage)\n- External API metrics (call count, response time)\n- Business metrics (pins created, campaigns launched)\n\nImplement performance logging:\n```javascript\nclass PerformanceTracker {\n  async trackExecution(operationName, func) {\n    const startTime = Date.now();\n    try {\n      const result = await func();\n      const duration = Date.now() - startTime;\n      this.logPerformance(operationName, duration, true);\n      return result;\n    } catch (error) {\n      const duration = Date.now() - startTime;\n      this.logPerformance(operationName, duration, false);\n      throw error;\n    }\n  }\n  \n  logPerformance(operation, duration, success) {\n    // Log to Google Sheets or other storage\n  }\n  \n  generateReport() {\n    // Analyze performance data and generate optimization suggestions\n  }\n}\n```\n\nCreate a dashboard in Google Sheets that shows:\n- Average execution time per operation\n- Success rate over time\n- API call distribution\n- Bottleneck identification",
-        "testStrategy": "Create unit tests for performance tracking with simulated operations. Verify metrics are correctly recorded. Test report generation with sample performance data.",
+        "id": 28,
+        "title": "Implement A/B Testing Capabilities for Pinterest Content",
+        "description": "Develop A/B testing functionality in the Pinterest automation system integrated with Track AI to optimize pin content and performance.",
+        "details": "Implement A/B testing capabilities for Pinterest content using Track AI's experimentation API. Create functionality to: 1) Generate variant pins with different images, titles, or descriptions, 2) Randomly distribute traffic between variants, 3) Track performance metrics for each variant, 4) Determine statistical significance of results. Integrate with the Pinterest API to create and manage variant pins. Implement automated winner selection based on conversion rates or other KPIs. Create A/B test reporting in the Track AI dashboard. Consider implementing multivariate testing for more complex experiments. Use Track AI's segmentation capabilities to run targeted tests for specific audience segments. Implement Bayesian analysis for more accurate test results with smaller sample sizes. Create a test scheduling system that works with the existing cron job structure.",
+        "testStrategy": "Create test A/B experiments and verify variants are correctly created and tracked. Validate that statistical analysis is accurate by comparing with manual calculations. Test the entire A/B testing workflow from creation to winner selection.",
         "priority": "low",
         "dependencies": [
-          7,
-          9
+          19,
+          21,
+          25
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 13,
-        "title": "Implement Brand Voice Consistency System",
-        "description": "Develop a system to ensure AI-generated content maintains consistent brand voice across all pins and campaigns.",
-        "details": "Create a BrandVoiceService that ensures consistency in AI-generated content. Implement:\n\n1. Brand voice configuration with tone, style, and terminology preferences\n2. Content validation against brand guidelines\n3. Phrase and terminology standardization\n4. Feedback loop for content improvement\n\nDefine brand voice parameters in a configuration:\n```javascript\nconst brandVoiceConfig = {\n  tone: 'friendly', // friendly, professional, casual, luxury\n  style: 'concise', // concise, detailed, storytelling\n  terminology: {\n    preferred: ['hochwertig', 'premium', 'exklusiv'],\n    avoided: ['billig', 'günstig', 'preiswert']\n  },\n  maxTitleLength: 100,\n  maxDescriptionLength: 500,\n  callToAction: ['Jetzt kaufen', 'Entdecken Sie', 'Limitiertes Angebot']\n};\n```\n\nImplement content validation:\n```javascript\nclass BrandVoiceValidator {\n  constructor(config) {\n    this.config = config;\n  }\n  \n  validateTitle(title) {\n    const issues = [];\n    \n    if (title.length > this.config.maxTitleLength) {\n      issues.push(`Title exceeds maximum length of ${this.config.maxTitleLength} characters`);\n    }\n    \n    for (const term of this.config.terminology.avoided) {\n      if (title.toLowerCase().includes(term.toLowerCase())) {\n        issues.push(`Title contains avoided term: ${term}`);\n      }\n    }\n    \n    return {\n      valid: issues.length === 0,\n      issues\n    };\n  }\n  \n  // Similar methods for description validation\n}\n```\n\nIntegrate with the AI content generation to provide feedback and improve future generations.",
-        "testStrategy": "Create unit tests for brand voice validation with various content examples. Test with content that violates guidelines to verify detection. Verify integration with AI content generation.",
-        "priority": "medium",
-        "dependencies": [
-          5
-        ],
-        "status": "pending",
-        "subtasks": []
-      },
-      {
-        "id": 14,
-        "title": "Implement Multi-Language Support Framework",
-        "description": "Develop a framework to support multiple languages beyond German, preparing for future expansion while optimizing for German market initially.",
-        "details": "Create a MultiLanguageService that provides language-specific functionality. Implement:\n\n1. Language configuration and detection\n2. Localized content templates\n3. Language-specific seasonal context\n4. Character limit handling for different languages\n\nWhile initially focusing on German, design the system to easily add more languages:\n```javascript\nconst languageConfigs = {\n  'de': {\n    locale: 'de-DE',\n    dateFormat: 'DD.MM.YYYY',\n    currencyFormat: '€{0}',\n    seasonalEvents: germanSeasonalEvents,\n    contentTemplates: {\n      pinTitle: '{productName} - {promotionText} | {price}',\n      pinDescription: '{productDescription}\\n\\n{seasonalContext}\\n\\n{callToAction}'\n    },\n    characterLimits: {\n      title: 100,\n      description: 500\n    }\n  },\n  'en': {\n    // English configuration for future use\n  }\n};\n```\n\nImplement language-specific content generation:\n```javascript\nclass LocalizedContentGenerator {\n  constructor(languageConfig) {\n    this.config = languageConfig;\n  }\n  \n  formatPrice(price) {\n    return this.config.currencyFormat.replace('{0}', price);\n  }\n  \n  generatePinTitle(product, seasonalContext) {\n    const template = this.config.contentTemplates.pinTitle;\n    return template\n      .replace('{productName}', product.title)\n      .replace('{promotionText}', seasonalContext.promotionText)\n      .replace('{price}', this.formatPrice(product.price));\n  }\n  \n  // Similar methods for description generation\n}\n```\n\nEnsure all user-facing content uses the appropriate language configuration.",
-        "testStrategy": "Create unit tests for localized content generation with sample product data. Test formatting functions for different languages. Verify character limit handling works correctly.",
+        "id": 29,
+        "title": "Implement Real-time Pinterest Campaign Monitoring",
+        "description": "Develop real-time monitoring capabilities in Track AI to provide immediate insights into Pinterest campaign performance.",
+        "details": "Implement real-time monitoring for Pinterest campaigns using Track AI's real-time analytics API. Create a real-time data pipeline that processes Pinterest traffic and conversion events as they occur. Implement alert thresholds for key metrics like CTR, conversion rate, and ROAS. Create real-time dashboard widgets that update automatically without page refresh. Use WebSocket connections or server-sent events for live updates. Implement anomaly detection to identify unusual patterns in Pinterest performance. Create notification systems for alerts via email, Slack, or in-dashboard messages. Consider implementing predictive analytics that forecast performance based on real-time trends. Ensure the real-time system works efficiently within the constraints of Pinterest's API rate limits and the existing cron job schedule.",
+        "testStrategy": "Generate test Pinterest traffic and verify it appears in real-time monitoring. Test alert thresholds by triggering conditions that should generate notifications. Measure system performance to ensure real-time monitoring doesn't impact overall system performance.",
         "priority": "low",
         "dependencies": [
-          5,
-          6,
-          13
+          22,
+          25
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 15,
-        "title": "Develop Comprehensive Documentation and Admin Interface",
-        "description": "Create detailed documentation for the system and develop a simple admin interface for monitoring and manual intervention.",
-        "details": "Create comprehensive documentation and a basic admin interface. Implement:\n\n1. Technical documentation covering all components and APIs\n2. User guide for system configuration and maintenance\n3. Simple web-based admin interface for monitoring and control\n4. Troubleshooting guide and common issues\n\nDocumentation should include:\n- Architecture overview\n- Component descriptions\n- Configuration guide\n- API references\n- Deployment instructions\n- Maintenance procedures\n\nDevelop a simple admin interface using Express.js and a frontend framework like React (v18.2.0) or Vue.js (v3.3.4):\n```javascript\n// Admin API endpoints\napp.get('/api/status', (req, res) => {\n  res.json({\n    lastRun: scheduler.lastRunTime,\n    nextRun: scheduler.nextRunTime,\n    stats: {\n      productsProcessed: stats.productsProcessed,\n      pinsCreated: stats.pinsCreated,\n      campaignsCreated: stats.campaignsCreated,\n      errors: stats.errors\n    }\n  });\n});\n\napp.post('/api/run-now', (req, res) => {\n  automationWorkflow.execute()\n    .then(() => res.json({ success: true }))\n    .catch(error => res.status(500).json({ error: error.message }));\n});\n```\n\nThe admin interface should provide:\n- System status dashboard\n- Manual execution controls\n- Error logs and alerts\n- Configuration editor\n- Performance metrics visualization",
-        "testStrategy": "Review documentation for completeness and accuracy. Test admin interface functionality with various scenarios. Verify all API endpoints return correct data. Test manual execution controls.",
+        "id": 30,
+        "title": "Create Unified Cross-Platform Performance Dashboard",
+        "description": "Develop a comprehensive unified dashboard in Track AI that provides side-by-side comparison of performance across Pinterest, Meta, TikTok, and other advertising platforms.",
+        "details": "Create a unified cross-platform dashboard that provides comprehensive performance comparison across all advertising channels. Implement standardized metrics across platforms including: impressions, clicks, conversions, CPA, ROAS, and ROI. Create side-by-side comparison widgets for key performance indicators. Implement platform attribution comparison to understand the relative contribution of each channel. Create time-series analysis to show performance trends across platforms. Use Track AI's dashboard API to create a customizable interface where users can select metrics and platforms to compare. Implement data normalization to ensure fair comparison between platforms with different attribution models. Create exportable reports in multiple formats (PDF, CSV, Excel). Consider implementing AI-powered insights that automatically highlight significant differences between platforms. Ensure the dashboard is responsive and works on mobile devices.",
+        "testStrategy": "Test the dashboard with data from multiple platforms including Pinterest. Verify all comparison features work correctly. Test customization options to ensure users can configure the dashboard to their needs. Validate that exported reports contain accurate data.",
         "priority": "medium",
         "dependencies": [
-          1,
-          7,
-          9,
-          12
+          22,
+          23,
+          24,
+          25
         ],
         "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 31,
+        "title": "Implement Pinterest Audience Automation System",
+        "description": "Develop an advanced audience automation system for Pinterest campaigns that manages audience creation, campaign structure, automation features, and data integration for optimized targeting and performance.",
+        "details": "Implement a comprehensive Pinterest audience automation system with the following components:\n\n1. Audience Management Module:\n   - Create a seed source management system that integrates with Shopify events API, customer list imports, and Pinterest engagement data\n   - Implement retargeting pool creation with configurable ROAS filtering (minimum 2x ROAS threshold by default)\n   - Develop act-alike (lookalike) audience generation using Pinterest's API with customizable similarity settings (1-10%)\n   - Build an audience refresh scheduler with nightly updates and weekly pruning of underperforming segments\n   - Create database schemas for storing audience configurations and performance metrics\n\n2. Campaign Structure Module:\n   - Implement prospecting campaign generator with broad targeting plus keyword/interest hints\n   - Create retargeting campaign builder with configurable event windows (7-day, 30-day, 90-day)\n   - Develop act-alike campaign creator that automatically generates campaigns from top-performing seed audiences\n   - Build budget management system with rules-based scaling (e.g., increase budget by 20% when ROAS > 3x)\n   - Implement campaign naming conventions that reflect audience type and targeting parameters\n\n3. Automation Features:\n   - Create a nightly job scheduler for audience refresh and lookalike creation\n   - Implement campaign performance monitoring with configurable KPI thresholds\n   - Develop creative rotation system with performance-based optimization\n   - Build kill switches for automatic pausing of campaigns below performance thresholds\n   - Create logging and notification system for automation actions\n\n4. Data Integration:\n   - Implement CAPI (Conversions API) integration for server-side event tracking\n   - Create secure customer list hashing and upload functionality\n   - Develop ROAS-based audience filtering using data from Track AI attribution system\n   - Build multi-country audience support with localization features\n   - Implement data validation and error handling for all integrations\n\nThe system should use the existing Pinterest API client library and integrate with Track AI's attribution system to leverage conversion data for audience optimization. Use the existing database structure and extend it with new tables for audience management. The implementation should follow the existing authentication patterns and respect rate limits of the Pinterest API.",
+        "testStrategy": "1. Unit Testing:\n   - Create unit tests for each audience management function (creation, filtering, refreshing)\n   - Test campaign structure generation with various input parameters\n   - Verify automation rules execute correctly with mock performance data\n   - Test data integration components with sample data payloads\n\n2. Integration Testing:\n   - Test end-to-end audience creation flow from seed sources to Pinterest upload\n   - Verify campaign creation with newly generated audiences\n   - Test integration with Track AI attribution system using test conversion events\n   - Verify CAPI events are correctly processed and attributed\n\n3. Performance Testing:\n   - Test audience refresh performance with large customer lists (100k+ records)\n   - Measure API call efficiency and optimize for Pinterest rate limits\n   - Verify nightly job completion within acceptable timeframes\n\n4. Functional Testing:\n   - Create test campaigns with the automation system and verify structure\n   - Test audience refresh cycle and verify audience updates\n   - Verify kill switches correctly pause underperforming campaigns\n   - Test budget scaling rules with simulated performance data\n\n5. User Acceptance Testing:\n   - Create a test campaign workflow from audience creation to campaign launch\n   - Verify all automation features work as expected in a production-like environment\n   - Test dashboard reporting of audience performance metrics\n   - Validate multi-country audience support with test data from different regions",
+        "status": "pending",
+        "dependencies": [
+          21,
+          22,
+          23,
+          25,
+          29
+        ],
+        "priority": "high",
         "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-23T11:25:53.650Z",
-      "updated": "2025-09-23T11:25:53.650Z",
+      "updated": "2025-09-26T07:05:50.981Z",
       "description": "Tasks for master context"
     }
   }

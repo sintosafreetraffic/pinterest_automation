@@ -1,63 +1,69 @@
-# Shopify-Pinterest Automation System PRD
+# Pinterest Automation + Track AI Integration PRD
 
 ## Project Overview
-A comprehensive automation system that connects Shopify e-commerce with Pinterest marketing, featuring AI-powered content generation, automated pin creation, and intelligent campaign management.
+Integrate Track AI analytics system with the existing Pinterest automation platform to provide comprehensive cross-platform conversion tracking, attribution analysis, and ROI measurement across Pinterest, Meta, TikTok, and other advertising channels.
 
-## Core Features
+## Current System Status
+- Pinterest automation system is fully operational with enhanced scheduler
+- Track AI system exists in `/track-ai/` directory with comprehensive analytics capabilities
+- Pinterest campaigns are creating ads with destination URLs to Shopify products
+- System runs on cron job (5 AM and 5 PM UTC) via Render deployment
 
-### 1. Shopify Integration
-- Product data extraction from Shopify collections
-- Automatic product movement between collections (READY FOR PINTEREST → GENERATED)
-- Real-time inventory and product status tracking
-- Seasonal content intelligence for German market
-
-### 2. AI Content Generation
-- DeepSeek AI integration for pin title and description generation
-- Seasonal context awareness (6-week lookahead for Germany)
-- German language optimization
-- Brand voice consistency across all content
-
-### 3. Pinterest Marketing Automation
-- Automated pin creation with CTA "On Sale"
-- Board management and organization
-- Multi-product campaign creation (10 products per campaign)
-- 10 euro daily budget per campaign
-- Rate limiting and anti-spam handling
-
-### 4. Google Sheets Data Management
-- Centralized data storage and tracking
-- Real-time status updates
-- Campaign performance monitoring
-- Multi-sheet integration for enhanced campaigns
-
-### 5. Automated Scheduling
-- Cron job execution (5 AM and 5 PM UTC daily)
-- Smooth workflow progression between steps
-- Error handling and recovery
-- Completion detection and optimization
+## Business Objectives
+1. **Unified Analytics Dashboard** - Single view of all advertising performance
+2. **Cross-Platform Attribution** - Track customer journey across Pinterest, Meta, TikTok
+3. **ROI Optimization** - Identify best-performing channels and campaigns
+4. **Conversion Tracking** - Accurate measurement of Pinterest-driven sales
+5. **Customer Insights** - Demographics and behavior analysis across platforms
 
 ## Technical Requirements
 
-### Performance
-- Handle 1000+ products efficiently
-- Process multiple campaigns simultaneously
-- Graceful rate limiting compliance
-- Real-time status updates
+### Phase 1: Track AI Integration Setup
+- Integrate Track AI tracking pixels into Pinterest pin destination URLs
+- Add UTM parameters for Pinterest campaign attribution
+- Configure Track AI to recognize Pinterest traffic
+- Set up conversion tracking for Pinterest campaigns
 
-### Reliability
-- Robust error handling for API failures
-- Automatic retry mechanisms
-- Data integrity protection
-- Backup and recovery systems
+### Phase 2: Pinterest URL Enhancement
+- Modify pin posting system to include tracking parameters
+- Add campaign ID, ad ID, and pin ID to destination URLs
+- Implement UTM parameter generation for Pinterest traffic
+- Ensure tracking works with existing Pinterest API integration
 
-### Scalability
-- Support for multiple Shopify stores
-- Expandable to additional social platforms
-- Configurable campaign parameters
-- Multi-language support
+### Phase 3: Cross-Platform Analytics
+- Connect Pinterest data with Track AI dashboard
+- Implement conversion attribution from Pinterest to Shopify
+- Add Pinterest performance metrics to Track AI dashboard
+- Create unified reporting across all advertising platforms
+
+### Phase 4: Advanced Tracking Features
+- Implement customer journey tracking from Pinterest to conversion
+- Add demographic analysis for Pinterest traffic
+- Create ROI calculations for Pinterest campaigns
+- Implement A/B testing capabilities for Pinterest content
+
+### Phase 5: Dashboard Integration
+- Integrate Pinterest metrics into Track AI dashboard
+- Add Pinterest-specific analytics widgets
+- Create cross-platform performance comparisons
+- Implement real-time Pinterest campaign monitoring
 
 ## Success Metrics
-- 90%+ automation success rate
-- <5% error rate in campaign creation
-- 24/7 operational capability
-- Seamless integration between platforms
+- 100% Pinterest traffic attribution through Track AI
+- Cross-platform ROI comparison capabilities
+- Real-time conversion tracking from Pinterest campaigns
+- Unified analytics dashboard showing all advertising performance
+- Accurate customer journey mapping from Pinterest to purchase
+
+## Technical Constraints
+- Must maintain existing Pinterest automation functionality
+- Track AI integration should not impact Pinterest API rate limits
+- System must work with existing cron job schedule
+- All changes must be compatible with Render deployment
+
+## Implementation Priority
+1. **High Priority**: Basic Track AI integration with Pinterest URLs
+2. **High Priority**: Conversion tracking setup
+3. **Medium Priority**: Dashboard integration
+4. **Medium Priority**: Advanced analytics features
+5. **Low Priority**: A/B testing and optimization features
