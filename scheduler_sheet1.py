@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Import campaign creation functions
 try:
-    from a import create_campaign, create_ad_group, create_ad
+    from a import create_campaign, create_ad_group, create_ad, generate_pin_title, generate_pin_description, move_processed_products_to_generated_collection
     CAMPAIGN_FUNCTIONS_AVAILABLE = True
     logger.info("✅ Campaign creation functions loaded")
 except ImportError as e:
@@ -38,7 +38,20 @@ except ImportError as e:
     create_campaign = None
     create_ad_group = None
     create_ad = None
+    generate_pin_title = None
+    generate_pin_description = None
+    move_processed_products_to_generated_collection = None
     CAMPAIGN_FUNCTIONS_AVAILABLE = False
+
+# Import board title generation functions
+try:
+    from forefront import generate_board_title_for_collection
+    BOARD_TITLE_FUNCTIONS_AVAILABLE = True
+    logger.info("✅ Board title generation functions loaded")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not load board title functions: {e}")
+    generate_board_title_for_collection = None
+    BOARD_TITLE_FUNCTIONS_AVAILABLE = False
 
 # Enhanced Pinterest integration imports
 try:
@@ -95,6 +108,152 @@ def update_sheet1_row(sheet, row_num, updates):
         return True
     except Exception as e:
         logger.error(f"Failed to update row {row_num}: {e}")
+        return False
+
+def generate_content_and_move_products():
+    """Generate pin titles, descriptions, board titles and move processed products to GENERATED collection"""
+    try:
+        logger.info("🎯 Starting Content Generation and Collection Movement")
+        logger.info("   🔍 This will move products that already have generated pins from READY FOR PINTEREST to GENERATED collection")
+        logger.info("   📝 Then generate missing pin titles, descriptions, and board titles for remaining products")
+        
+        # Step 1: Move processed products from READY FOR PINTEREST to GENERATED collection
+        if move_processed_products_to_generated_collection:
+            logger.info("🔄 Step 1: Moving processed products to GENERATED collection...")
+            logger.info("   📋 Source: READY FOR PINTEREST (ID: 644749033796)")
+            logger.info("   📋 Destination: GENERATED (ID: 651569889604)")
+            try:
+                move_result = move_processed_products_to_generated_collection()
+                if move_result:
+                    logger.info("✅ Successfully moved processed products to GENERATED collection")
+                else:
+                    logger.info("ℹ️ No products needed to be moved (normal if no processed products exist)")
+            except Exception as e:
+                logger.error(f"❌ Error moving products: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            logger.warning("⚠️ Collection movement function not available")
+        
+        # Step 2: Generate content for products in READY FOR PINTEREST collection
+        logger.info("📝 Step 2: Generating pin titles, descriptions, and board titles...")
+        
+        # Connect to Sheet1
+        workbook = google_sheets_client.open_by_key(SHEET_ID)
+        sheet1 = workbook.worksheet('Sheet1')
+        
+        # Get all data
+        data = sheet1.get_all_values()
+        logger.info(f"📊 Loaded {len(data)} rows from Sheet1")
+        
+        if len(data) < 2:
+            logger.info("ℹ️ No data rows found in Sheet1")
+            return True
+        
+        headers = data[0]
+        
+        # Find column indices
+        product_name_idx = None
+        product_url_idx = None
+        pin_title_idx = None
+        pin_description_idx = None
+        board_title_idx = None
+        
+        for i, header in enumerate(headers):
+            header_lower = header.lower()
+            if 'product name' in header_lower:
+                product_name_idx = i
+            elif 'product url' in header_lower:
+                product_url_idx = i
+            elif 'generated pin title' in header_lower:
+                pin_title_idx = i
+            elif 'generated pin description' in header_lower:
+                pin_description_idx = i
+            elif 'board title' in header_lower:
+                board_title_idx = i
+        
+        if product_name_idx is None:
+            logger.error("❌ Could not find 'Product Name' column")
+            return False
+        
+        # Process rows that need content generation
+        generated_count = 0
+        for i, row in enumerate(data[1:], 2):  # Skip header
+            try:
+                if len(row) <= max(product_name_idx, pin_title_idx or 0, pin_description_idx or 0, board_title_idx or 0):
+                    continue
+                
+                product_name = row[product_name_idx] if product_name_idx < len(row) else ''
+                product_url = row[product_url_idx] if product_url_idx and product_url_idx < len(row) else ''
+                
+                if not product_name:
+                    continue
+                
+                # Check if content already exists
+                existing_title = row[pin_title_idx] if pin_title_idx and pin_title_idx < len(row) else ''
+                existing_description = row[pin_description_idx] if pin_description_idx and pin_description_idx < len(row) else ''
+                existing_board_title = row[board_title_idx] if board_title_idx and board_title_idx < len(row) else ''
+                
+                # Generate content if missing
+                updates = {}
+                
+                # Generate pin title if missing
+                if not existing_title and generate_pin_title:
+                    try:
+                        generated_title = generate_pin_title(product_name, {}, target_language="de")
+                        if generated_title:
+                            updates['pin_title'] = generated_title
+                            logger.info(f"✅ Generated pin title for: {product_name[:50]}...")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to generate pin title for {product_name}: {e}")
+                
+                # Generate pin description if missing
+                if not existing_description and generate_pin_description:
+                    try:
+                        generated_description = generate_pin_description(product_name, {}, target_language="de")
+                        if generated_description:
+                            updates['pin_description'] = generated_description
+                            logger.info(f"✅ Generated pin description for: {product_name[:50]}...")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to generate pin description for {product_name}: {e}")
+                
+                # Generate board title if missing
+                if not existing_board_title and generate_board_title_for_collection:
+                    try:
+                        board_titles_cache = {}
+                        generated_board_title = generate_board_title_for_collection(product_name, board_titles_cache)
+                        if generated_board_title:
+                            updates['board_title'] = generated_board_title
+                            logger.info(f"✅ Generated board title for: {product_name[:50]}...")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to generate board title for {product_name}: {e}")
+                
+                # Update sheet with generated content
+                if updates:
+                    try:
+                        if 'pin_title' in updates and pin_title_idx:
+                            sheet1.update_cell(i, pin_title_idx + 1, updates['pin_title'])
+                        if 'pin_description' in updates and pin_description_idx:
+                            sheet1.update_cell(i, pin_description_idx + 1, updates['pin_description'])
+                        if 'board_title' in updates and board_title_idx:
+                            sheet1.update_cell(i, board_title_idx + 1, updates['board_title'])
+                        
+                        generated_count += 1
+                        logger.info(f"✅ Updated row {i} with generated content")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to update row {i}: {e}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing row {i}: {e}")
+                continue
+        
+        logger.info(f"🎯 Content generation completed:")
+        logger.info(f"   📝 Generated content for: {generated_count} products")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error in content generation and collection movement: {e}")
         return False
 
 def post_pins_to_sheet1(max_pins=50, delay_between_posts=30):
@@ -480,26 +639,35 @@ def main():
     logger.info(f"📅 Today is {today.strftime('%A')} - Campaign creation {'enabled' if is_sunday else 'disabled'}")
     
     try:
-        # Step 1: Post pins for empty rows (runs twice daily)
-        logger.info("📌 Step 1: Posting pins for empty rows...")
+        # Step 1: Generate content and move products (runs twice daily)
+        logger.info("📝 Step 1: Generating pin titles, descriptions, board titles and moving products...")
+        content_success = generate_content_and_move_products()
+        
+        if content_success:
+            logger.info("✅ Step 1 completed: Content generation and collection movement successful")
+        else:
+            logger.info("⚠️ Step 1: Content generation had issues")
+        
+        # Step 2: Post pins for empty rows (runs twice daily)
+        logger.info("📌 Step 2: Posting pins for empty rows...")
         pin_success = post_pins_to_sheet1(max_pins=20, delay_between_posts=60)  # Conservative settings
         
         if pin_success:
-            logger.info("✅ Step 1 completed: Pins posted successfully")
+            logger.info("✅ Step 2 completed: Pins posted successfully")
         else:
-            logger.info("⚠️ Step 1: Pin posting had issues (rate limiting expected)")
+            logger.info("⚠️ Step 2: Pin posting had issues (rate limiting expected)")
         
-        # Step 2: Create campaigns for posted pins (only on Sundays)
+        # Step 3: Create campaigns for posted pins (only on Sundays)
         if is_sunday:
-            logger.info("🎯 Step 2: Creating campaigns for posted pins (Sunday campaign creation)...")
+            logger.info("🎯 Step 3: Creating campaigns for posted pins (Sunday campaign creation)...")
             campaign_success = create_campaigns_for_sheet1()
             
             if campaign_success:
-                logger.info("✅ Step 2 completed: Campaigns created successfully")
+                logger.info("✅ Step 3 completed: Campaigns created successfully")
             else:
-                logger.info("⚠️ Step 2: Campaign creation had issues")
+                logger.info("⚠️ Step 3: Campaign creation had issues")
         else:
-            logger.info("⏭️ Step 2: Skipped campaign creation (not Sunday)")
+            logger.info("⏭️ Step 3: Skipped campaign creation (not Sunday)")
             logger.info("📅 Campaign creation is scheduled for Sundays only")
         
         logger.info("🎉 Sheet1 Enhanced Scheduler completed successfully!")

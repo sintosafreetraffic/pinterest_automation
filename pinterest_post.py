@@ -92,14 +92,18 @@ def update_sheet(sheet_service, row_index, board_id, pin_id=None):
         body=body
     ).execute()
 
-def get_all_boards(access_token):
+def get_all_boards(access_token, force_refresh=False):
     """Get all boards once and cache them"""
     global all_boards_cache
     
-    if all_boards_cache is not None:
+    if all_boards_cache is not None and not force_refresh:
         return all_boards_cache
     
-    print(f"[DEBUG] Fetching all boards (one-time operation)...")
+    if force_refresh:
+        all_boards_cache = None
+        print(f"[DEBUG] Force refreshing boards cache...")
+    else:
+        print(f"[DEBUG] Fetching all boards (one-time operation)...")
     
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -245,22 +249,55 @@ def get_or_create_board(access_token, board_name):
         # Get all boards (cached)
         all_boards = get_all_boards(access_token)
         
-        # Search through cached boards
+        # Search through cached boards with multiple matching strategies
         print(f"[DEBUG] Searching for board: '{board_name}' (length: {len(board_name)})")
         print(f"[DEBUG] Target board repr: {repr(board_name)}")
         print(f"[DEBUG] Cache has {len(all_boards) if all_boards else 0} boards")
         print(f"[DEBUG] Global cache has {len(all_boards_cache) if all_boards_cache else 0} boards")
+        
         for board in all_boards:
             board_name_found = board.get("name", "")
             print(f"[DEBUG] Checking: '{board_name_found}' vs '{board_name}'")
             print(f"[DEBUG] Found board repr: {repr(board_name_found)}")
-            if board_name_found == board_name:
+            
+            # Try multiple matching strategies
+            if (board_name_found == board_name or 
+                board_name_found.strip() == board_name.strip() or
+                board_name_found.lower() == board_name.lower() or
+                board_name_found.strip().lower() == board_name.strip().lower()):
                 board_id = board["id"]
                 board_cache[board_name] = board_id
                 print(f"📌 Found existing board: {board_name} (ID: {board_id})")
                 return board_id
         
-        print(f"[DEBUG] Board '{board_name}' not found in {len(all_boards)} existing boards, will create new one")
+        print(f"[DEBUG] Board '{board_name}' not found in {len(all_boards)} existing boards")
+        
+        # Try to search for the board using Pinterest API as a last resort
+        print(f"[DEBUG] Attempting API search for board: {board_name}")
+        try:
+            search_url = f"{BASE_URL}/boards"
+            search_params = {"page_size": 250}
+            search_response = requests.get(search_url, headers=headers, params=search_params)
+            
+            if search_response.status_code == 200:
+                search_boards = search_response.json().get("items", [])
+                print(f"[DEBUG] API search found {len(search_boards)} boards")
+                
+                for board in search_boards:
+                    board_name_found = board.get("name", "")
+                    if (board_name_found == board_name or 
+                        board_name_found.strip() == board_name.strip() or
+                        board_name_found.lower() == board_name.lower()):
+                        board_id = board["id"]
+                        board_cache[board_name] = board_id
+                        print(f"📌 Found existing board via API search: {board_name} (ID: {board_id})")
+                        return board_id
+                
+                print(f"[DEBUG] Board '{board_name}' not found via API search either, will create new one")
+            else:
+                print(f"[DEBUG] API search failed with status {search_response.status_code}, will create new one")
+        except Exception as search_e:
+            print(f"[DEBUG] API search failed: {search_e}, will create new one")
         
     except Exception as e:
         print(f"⚠️ Could not check existing boards: {e}")
@@ -310,6 +347,41 @@ def get_or_create_board(access_token, board_name):
                         board_cache[board_name] = board_id
                         print(f"📌 Found existing board after creation failed: {board_name} (ID: {board_id})")
                         return board_id
+                
+                # If board not found in cache, try to refresh the cache and search again
+                print(f"⚠️ Board '{board_name}' not found in cache. Refreshing cache and searching again...")
+                all_boards = get_all_boards(access_token, force_refresh=True)
+                for board in all_boards:
+                    board_name_found = board.get("name", "")
+                    if (board_name_found == board_name or 
+                        board_name_found.strip() == board_name.strip() or
+                        board_name_found.lower() == board_name.lower()):
+                        board_id = board["id"]
+                        board_cache[board_name] = board_id
+                        print(f"📌 Found existing board after cache refresh: {board_name} (ID: {board_id})")
+                        return board_id
+                
+                # Last resort: try a direct API call to get all boards
+                print(f"⚠️ Board '{board_name}' still not found. Trying direct API call...")
+                try:
+                    direct_url = f"{BASE_URL}/boards"
+                    direct_response = requests.get(direct_url, headers=headers, params={"page_size": 250})
+                    if direct_response.status_code == 200:
+                        direct_boards = direct_response.json().get("items", [])
+                        for board in direct_boards:
+                            board_name_found = board.get("name", "")
+                            if (board_name_found == board_name or 
+                                board_name_found.strip() == board_name.strip() or
+                                board_name_found.lower() == board_name.lower()):
+                                board_id = board["id"]
+                                board_cache[board_name] = board_id
+                                print(f"📌 Found existing board via direct API call: {board_name} (ID: {board_id})")
+                                return board_id
+                except Exception as direct_e:
+                    print(f"⚠️ Direct API call failed: {direct_e}")
+                
+                print(f"❌ Board '{board_name}' exists but could not be found. This may be a Pinterest API issue.")
+                return None
         except Exception as e:
             print(f"⚠️ Could not parse error response: {e}")
     else:
