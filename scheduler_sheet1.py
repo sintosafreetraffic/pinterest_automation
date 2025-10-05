@@ -110,47 +110,88 @@ def update_sheet1_row(sheet, row_num, updates):
         logger.error(f"Failed to update row {row_num}: {e}")
         return False
 
+def cleanup_duplicate_products():
+    """Remove products from NEEDS TO BE DONE collection if they're already in READY FOR PINTEREST collection"""
+    try:
+        logger.info("🧹 Starting Duplicate Product Cleanup")
+        logger.info("   🔍 Removing products from NEEDS TO BE DONE (644626448708) if they're already in READY FOR PINTEREST (644749033796)")
+        
+        # Import collection management functions
+        from forefront import get_collection_products, remove_product_from_collection
+        
+        # Get products from both collections
+        needs_to_be_done_products = get_collection_products(644626448708)
+        ready_for_pinterest_products = get_collection_products(644749033796)
+        
+        logger.info(f"📊 NEEDS TO BE DONE collection: {len(needs_to_be_done_products)} products")
+        logger.info(f"📊 READY FOR PINTEREST collection: {len(ready_for_pinterest_products)} products")
+        
+        # Create a set of product IDs in READY FOR PINTEREST for fast lookup
+        ready_product_ids = {product['id'] for product in ready_for_pinterest_products}
+        
+        # Find duplicates
+        duplicates_to_remove = []
+        for product in needs_to_be_done_products:
+            if product['id'] in ready_product_ids:
+                duplicates_to_remove.append(product)
+        
+        logger.info(f"🔍 Found {len(duplicates_to_remove)} duplicate products to remove from NEEDS TO BE DONE")
+        
+        if not duplicates_to_remove:
+            logger.info("✅ No duplicate products found - cleanup not needed")
+            return True
+        
+        # Remove duplicates from NEEDS TO BE DONE collection
+        removed_count = 0
+        for product in duplicates_to_remove:
+            try:
+                success = remove_product_from_collection(644626448708, product['id'])
+                if success:
+                    removed_count += 1
+                    logger.info(f"✅ Removed duplicate: {product['title'][:50]}... (ID: {product['id']})")
+                else:
+                    logger.warning(f"⚠️ Failed to remove: {product['title'][:50]}... (ID: {product['id']})")
+            except Exception as e:
+                logger.error(f"❌ Error removing product {product['id']}: {e}")
+                continue
+        
+        logger.info(f"🎯 Duplicate cleanup completed:")
+        logger.info(f"   ✅ Removed: {removed_count} duplicate products")
+        logger.info(f"   📊 Remaining in NEEDS TO BE DONE: {len(needs_to_be_done_products) - removed_count}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error in duplicate cleanup: {e}")
+        return False
+
 def generate_content_and_move_products():
-    """Generate pin titles, descriptions, board titles and move processed products to GENERATED collection"""
+    """Generate 10 pins per product from READY FOR PINTEREST collection and move to GENERATED"""
     try:
         logger.info("🎯 Starting Content Generation and Collection Movement")
-        logger.info("   🔍 This will move products that already have generated pins from READY FOR PINTEREST to GENERATED collection")
-        logger.info("   📝 Then generate missing pin titles, descriptions, and board titles for remaining products")
+        logger.info("   🔍 This will generate 10 pins per product from READY FOR PINTEREST collection")
+        logger.info("   📝 Add new rows to Google Sheet with generated content")
+        logger.info("   📋 Then move products from READY FOR PINTEREST to GENERATED collection")
         
-        # Step 1: Move processed products from READY FOR PINTEREST to GENERATED collection
-        if move_processed_products_to_generated_collection:
-            logger.info("🔄 Step 1: Moving processed products to GENERATED collection...")
-            logger.info("   📋 Source: READY FOR PINTEREST (ID: 644749033796)")
-            logger.info("   📋 Destination: GENERATED (ID: 651569889604)")
-            try:
-                move_result = move_processed_products_to_generated_collection()
-                if move_result:
-                    logger.info("✅ Successfully moved processed products to GENERATED collection")
-                else:
-                    logger.info("ℹ️ No products needed to be moved (normal if no processed products exist)")
-            except Exception as e:
-                logger.error(f"❌ Error moving products: {e}")
-                import traceback
-                traceback.print_exc()
-        else:
-            logger.warning("⚠️ Collection movement function not available")
+        # Import collection management functions
+        from forefront import get_collection_products, remove_product_from_collection
+        from a import add_product_to_collection
         
-        # Step 2: Generate content for products in READY FOR PINTEREST collection
-        logger.info("📝 Step 2: Generating pin titles, descriptions, and board titles...")
+        # Get products from READY FOR PINTEREST collection
+        ready_products = get_collection_products(644749033796)  # READY FOR PINTEREST collection ID
+        logger.info(f"📊 Found {len(ready_products)} products in READY FOR PINTEREST collection")
+        
+        if not ready_products:
+            logger.info("✅ No products in READY FOR PINTEREST collection - nothing to process")
+            return True
         
         # Connect to Sheet1
         workbook = google_sheets_client.open_by_key(SHEET_ID)
         sheet1 = workbook.worksheet('Sheet1')
         
-        # Get all data
+        # Get current data to find column indices
         data = sheet1.get_all_values()
-        logger.info(f"📊 Loaded {len(data)} rows from Sheet1")
-        
-        if len(data) < 2:
-            logger.info("ℹ️ No data rows found in Sheet1")
-            return True
-        
-        headers = data[0]
+        headers = data[0] if data else []
         
         # Find column indices
         product_name_idx = None
@@ -176,84 +217,142 @@ def generate_content_and_move_products():
             logger.error("❌ Could not find 'Product Name' column")
             return False
         
-        # Process rows that need content generation
-        generated_count = 0
-        for i, row in enumerate(data[1:], 2):  # Skip header
+        # Process each product in READY FOR PINTEREST collection
+        total_pins_generated = 0
+        products_processed = 0
+        
+        for product in ready_products:
             try:
-                if len(row) <= max(product_name_idx, pin_title_idx or 0, pin_description_idx or 0, board_title_idx or 0):
-                    continue
+                product_name = product.get('title', 'Unknown Product')
+                product_id = product.get('id')
+                product_url = f"https://92c6ce-58.myshopify.com/products/{product.get('handle', '')}"
                 
-                product_name = row[product_name_idx] if product_name_idx < len(row) else ''
-                product_url = row[product_url_idx] if product_url_idx and product_url_idx < len(row) else ''
+                logger.info(f"📌 Processing product: {product_name}")
+                logger.info(f"   🆔 Product ID: {product_id}")
+                logger.info(f"   🔗 Product URL: {product_url}")
                 
-                if not product_name:
-                    continue
-                
-                # Check if content already exists
-                existing_title = row[pin_title_idx] if pin_title_idx and pin_title_idx < len(row) else ''
-                existing_description = row[pin_description_idx] if pin_description_idx and pin_description_idx < len(row) else ''
-                existing_board_title = row[board_title_idx] if board_title_idx and board_title_idx < len(row) else ''
-                
-                # Generate content if missing
-                updates = {}
-                
-                # Generate pin title if missing
-                if not existing_title and generate_pin_title:
+                # Generate 10 pins for this product
+                pins_generated = 0
+                for pin_num in range(1, 11):  # Generate 10 pins
                     try:
-                        generated_title = generate_pin_title(product_name, {}, target_language="de")
-                        if generated_title:
-                            updates['pin_title'] = generated_title
-                            logger.info(f"✅ Generated pin title for: {product_name[:50]}...")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Failed to generate pin title for {product_name}: {e}")
-                
-                # Generate pin description if missing
-                if not existing_description and generate_pin_description:
-                    try:
-                        generated_description = generate_pin_description(product_name, {}, target_language="de")
-                        if generated_description:
-                            updates['pin_description'] = generated_description
-                            logger.info(f"✅ Generated pin description for: {product_name[:50]}...")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Failed to generate pin description for {product_name}: {e}")
-                
-                # Generate board title if missing
-                if not existing_board_title and generate_board_title_for_collection:
-                    try:
-                        board_titles_cache = {}
-                        generated_board_title = generate_board_title_for_collection(product_name, board_titles_cache)
-                        if generated_board_title:
-                            updates['board_title'] = generated_board_title
-                            logger.info(f"✅ Generated board title for: {product_name[:50]}...")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Failed to generate board title for {product_name}: {e}")
-                
-                # Update sheet with generated content
-                if updates:
-                    try:
-                        if 'pin_title' in updates and pin_title_idx:
-                            sheet1.update_cell(i, pin_title_idx + 1, updates['pin_title'])
-                        if 'pin_description' in updates and pin_description_idx:
-                            sheet1.update_cell(i, pin_description_idx + 1, updates['pin_description'])
-                        if 'board_title' in updates and board_title_idx:
-                            sheet1.update_cell(i, board_title_idx + 1, updates['board_title'])
+                        # Generate content for this pin
+                        pin_title = ""
+                        pin_description = ""
+                        board_title = ""
                         
-                        generated_count += 1
-                        logger.info(f"✅ Updated row {i} with generated content")
+                        # Generate pin title
+                        if generate_pin_title:
+                            try:
+                                pin_title = generate_pin_title(product_name, {}, target_language="de")
+                                if not pin_title:
+                                    pin_title = f"{product_name} - Pin {pin_num} - Jetzt entdecken!"
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to generate pin title for {product_name} Pin {pin_num}: {e}")
+                                pin_title = f"{product_name} - Pin {pin_num} - Jetzt entdecken!"
+                        else:
+                            pin_title = f"{product_name} - Pin {pin_num} - Jetzt entdecken!"
+                        
+                        # Generate pin description
+                        if generate_pin_description:
+                            try:
+                                pin_description = generate_pin_description(product_name, {}, target_language="de")
+                                if not pin_description:
+                                    pin_description = f"Entdecke {product_name} - Perfekt für deinen Style! Pin {pin_num}"
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to generate pin description for {product_name} Pin {pin_num}: {e}")
+                                pin_description = f"Entdecke {product_name} - Perfekt für deinen Style! Pin {pin_num}"
+                        else:
+                            pin_description = f"Entdecke {product_name} - Perfekt für deinen Style! Pin {pin_num}"
+                        
+                        # Generate board title
+                        if generate_board_title_for_collection:
+                            try:
+                                board_titles_cache = {}
+                                board_title = generate_board_title_for_collection(product_name, board_titles_cache)
+                                if not board_title:
+                                    board_title = f"{product_name} Inspirationen"
+                            except Exception as e:
+                                logger.warning(f"⚠️ Failed to generate board title for {product_name} Pin {pin_num}: {e}")
+                                board_title = f"{product_name} Inspirationen"
+                        else:
+                            board_title = f"{product_name} Inspirationen"
+                        
+                        # Create new row in Google Sheet
+                        new_row = [''] * len(headers)  # Initialize with empty values
+                        
+                        # Set the values in appropriate columns
+                        if product_url_idx is not None:
+                            new_row[product_url_idx] = product_url
+                        if product_name_idx is not None:
+                            new_row[product_name_idx] = product_name
+                        if pin_title_idx is not None:
+                            new_row[pin_title_idx] = pin_title
+                        if pin_description_idx is not None:
+                            new_row[pin_description_idx] = pin_description
+                        if board_title_idx is not None:
+                            new_row[board_title_idx] = board_title
+                        
+                        # Add row to sheet
+                        try:
+                            sheet1.append_row(new_row)
+                            pins_generated += 1
+                            total_pins_generated += 1
+                            
+                            logger.info(f"✅ Generated Pin {pin_num} for {product_name[:30]}...")
+                        except Exception as sheet_error:
+                            # Check if this is a Google Sheets rate limit error
+                            error_str = str(sheet_error).lower()
+                            if any(keyword in error_str for keyword in ['quota exceeded', 'rate limit', '429', 'resource_exhausted']):
+                                logger.warning(f"⚠️ Google Sheets rate limit detected: {sheet_error}")
+                                logger.info("🔄 Moving to next product due to rate limits")
+                                break  # Break out of pin generation for this product
+                            else:
+                                logger.error(f"❌ Error adding row to sheet: {sheet_error}")
+                                continue
+                        
                     except Exception as e:
-                        logger.error(f"❌ Failed to update row {i}: {e}")
+                        logger.error(f"❌ Error generating pin {pin_num} for {product_name}: {e}")
+                        continue
+                
+                logger.info(f"✅ Generated {pins_generated} pins for {product_name}")
+                
+                # Move product from READY FOR PINTEREST to GENERATED collection
+                try:
+                    # Remove from READY FOR PINTEREST
+                    remove_success = remove_product_from_collection(644749033796, product_id)
+                    if remove_success:
+                        # Add to GENERATED collection
+                        add_success = add_product_to_collection(product_id, 651569889604)  # GENERATED collection ID
+                        if add_success:
+                            products_processed += 1
+                            logger.info(f"✅ Moved {product_name} from READY FOR PINTEREST to GENERATED collection")
+                        else:
+                            logger.warning(f"⚠️ Failed to add {product_name} to GENERATED collection")
+                    else:
+                        logger.warning(f"⚠️ Failed to remove {product_name} from READY FOR PINTEREST collection")
+                except Exception as e:
+                    logger.error(f"❌ Error moving product {product_name}: {e}")
+                    continue
                 
             except Exception as e:
-                logger.error(f"❌ Error processing row {i}: {e}")
+                logger.error(f"❌ Error processing product {product.get('title', 'Unknown')}: {e}")
                 continue
         
-        logger.info(f"🎯 Content generation completed:")
-        logger.info(f"   📝 Generated content for: {generated_count} products")
+        logger.info(f"🎯 Content generation and collection movement completed:")
+        logger.info(f"   📌 Total pins generated: {total_pins_generated}")
+        logger.info(f"   📦 Products processed: {products_processed}")
+        logger.info(f"   📊 Pins per product: 10")
         
-        return True
+        # Return status that indicates if rate limits were hit
+        if total_pins_generated == 0 and products_processed > 0:
+            return "RATE_LIMITED"  # Indicate rate limits were hit
+        else:
+            return True
         
     except Exception as e:
         logger.error(f"❌ Error in content generation and collection movement: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def post_pins_to_sheet1(max_pins=50, delay_between_posts=30):
@@ -347,14 +446,25 @@ def post_pins_to_sheet1(max_pins=50, delay_between_posts=30):
                 logger.info(f"   Board ID: {board_id}")
                 
                 # Post pin
-                pin_id = post_pin(
-                    access_token, 
-                    board_id, 
-                    image_url, 
-                    title, 
-                    description, 
-                    product_url
-                )
+                try:
+                    pin_id = post_pin(
+                        access_token, 
+                        board_id, 
+                        image_url, 
+                        title, 
+                        description, 
+                        product_url
+                    )
+                except Exception as e:
+                    # Check if this is a rate limit error
+                    error_str = str(e).lower()
+                    if any(keyword in error_str for keyword in ['rate limit', 'quota exceeded', 'too many requests', '429']):
+                        logger.warning(f"⚠️ Rate limit detected: {e}")
+                        logger.info("🔄 Moving to campaign creation for already posted pins")
+                        break
+                    else:
+                        logger.error(f"❌ Unexpected error posting pin: {e}")
+                        pin_id = None
                 
                 if pin_id:
                     # Check if rate limited
@@ -380,6 +490,12 @@ def post_pins_to_sheet1(max_pins=50, delay_between_posts=30):
                 else:
                     logger.warning(f"⚠️ Failed to post pin for row {row_num}")
                     failed_count += 1
+                    
+                    # Check if this is a rate limit error and break out
+                    if failed_count >= 3:  # If we've failed 3 times in a row, likely rate limited
+                        logger.warning("⚠️ Multiple consecutive failures detected - likely rate limited")
+                        logger.info("🔄 Moving to campaign creation for already posted pins")
+                        break
                 
                 # Rate limiting delay
                 if i < len(empty_rows) - 1:  # Don't delay after last pin
@@ -639,6 +755,15 @@ def main():
     logger.info(f"📅 Today is {today.strftime('%A')} - Campaign creation {'enabled' if is_sunday else 'disabled'}")
     
     try:
+        # Step 0: Clean up duplicate products (runs twice daily)
+        logger.info("🧹 Step 0: Cleaning up duplicate products from NEEDS TO BE DONE collection...")
+        cleanup_success = cleanup_duplicate_products()
+        
+        if cleanup_success:
+            logger.info("✅ Step 0 completed: Duplicate cleanup successful")
+        else:
+            logger.info("⚠️ Step 0: Duplicate cleanup had issues")
+        
         # Step 1: Generate content and move products (runs twice daily)
         logger.info("📝 Step 1: Generating pin titles, descriptions, board titles and moving products...")
         content_success = generate_content_and_move_products()
@@ -650,7 +775,13 @@ def main():
         
         # Step 2: Post pins for empty rows (runs twice daily)
         logger.info("📌 Step 2: Posting pins for empty rows...")
-        pin_success = post_pins_to_sheet1(max_pins=20, delay_between_posts=60)  # Conservative settings
+        # Check if we hit rate limits during content generation
+        if content_success == "RATE_LIMITED":
+            logger.info("⚠️ Rate limits detected in Step 1 - skipping pin posting to avoid further rate limits")
+            logger.info("🔄 Moving directly to campaign creation")
+            pin_success = False  # Skip pin posting
+        else:
+            pin_success = post_pins_to_sheet1(max_pins=20, delay_between_posts=60)  # Conservative settings
         
         if pin_success:
             logger.info("✅ Step 2 completed: Pins posted successfully")
