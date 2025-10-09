@@ -231,6 +231,30 @@ def generate_content_and_move_products():
                 logger.info(f"   🆔 Product ID: {product_id}")
                 logger.info(f"   🔗 Product URL: {product_url}")
                 
+                # Fetch full product details including images
+                full_product_data = None
+                try:
+                    from forefront import SHOPIFY_API_KEY, SHOPIFY_STORE_URL
+                    import requests
+                    
+                    api_version = "2024-04"
+                    url = f"https://{SHOPIFY_STORE_URL}/admin/api/{api_version}/products/{product_id}.json"
+                    headers = {
+                        "X-Shopify-Access-Token": SHOPIFY_API_KEY,
+                        "Content-Type": "application/json"
+                    }
+                    
+                    response = requests.get(url, headers=headers)
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    full_product_data = data.get('product', {})
+                    logger.info(f"   ✅ Fetched full product data with {len(full_product_data.get('images', []))} images")
+                    
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Failed to fetch full product data: {e}")
+                    full_product_data = product  # Fallback to collection product data
+                
                 # Generate 10 pins for this product
                 pins_generated = 0
                 for pin_num in range(1, 11):  # Generate 10 pins
@@ -280,10 +304,10 @@ def generate_content_and_move_products():
                         # Create new row in Google Sheet
                         new_row = [''] * len(headers)  # Initialize with empty values
                         
-                        # Get product image URL from Shopify product data
+                        # Get product image URL from full product data
                         image_url = ""
-                        if 'images' in product and product['images'] and len(product['images']) > 0:
-                            image_url = product['images'][0].get('src', '')
+                        if full_product_data and 'images' in full_product_data and full_product_data['images'] and len(full_product_data['images']) > 0:
+                            image_url = full_product_data['images'][0].get('src', '')
                             logger.info(f"   🖼️ Using product image: {image_url[:50]}...")
                         else:
                             logger.warning(f"   ⚠️ No product images found for {product_name}")
