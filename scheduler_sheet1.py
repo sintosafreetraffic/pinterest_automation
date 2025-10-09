@@ -280,7 +280,17 @@ def generate_content_and_move_products():
                         # Create new row in Google Sheet
                         new_row = [''] * len(headers)  # Initialize with empty values
                         
+                        # Get product image URL from Shopify product data
+                        image_url = ""
+                        if 'images' in product and product['images'] and len(product['images']) > 0:
+                            image_url = product['images'][0].get('src', '')
+                            logger.info(f"   🖼️ Using product image: {image_url[:50]}...")
+                        else:
+                            logger.warning(f"   ⚠️ No product images found for {product_name}")
+                        
                         # Set the values in appropriate columns
+                        # Column A (index 0) should be the image URL
+                        new_row[0] = image_url
                         if product_url_idx is not None:
                             new_row[product_url_idx] = product_url
                         if product_name_idx is not None:
@@ -408,6 +418,14 @@ def post_pins_to_sheet1(max_pins=50, delay_between_posts=30):
                 image_url = row[0] if len(row) > 0 else ''
                 product_name = row[1] if len(row) > 1 else 'Unknown'
                 product_url = row[2] if len(row) > 2 else ''
+                
+                # Check if image URL is empty
+                if not image_url or image_url.strip() == '':
+                    logger.warning(f"⚠️ Empty image URL for row {row_num}: {product_name}")
+                    logger.warning(f"   Row data: {row[:5]}...")  # Show first 5 columns
+                    logger.warning(f"   ⚠️ Skipping row without image URL")
+                    failed_count += 1
+                    continue
                 
                 # Use enhanced pin generation if available
                 if enhanced_pin_generation:
