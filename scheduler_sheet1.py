@@ -287,7 +287,7 @@ def generate_content_and_move_products():
                                 pin_description = f"Entdecke {product_name} - Perfekt für deinen Style! Pin {pin_num}"
                         else:
                             pin_description = f"Entdecke {product_name} - Perfekt für deinen Style! Pin {pin_num}"
-                        
+                
                         # Generate board title
                         if generate_board_title_for_collection:
                             try:
@@ -304,11 +304,14 @@ def generate_content_and_move_products():
                         # Create new row in Google Sheet
                         new_row = [''] * len(headers)  # Initialize with empty values
                         
-                        # Get product image URL from full product data
+                        # Get unique product image URL from full product data based on pin number
                         image_url = ""
                         if full_product_data and 'images' in full_product_data and full_product_data['images'] and len(full_product_data['images']) > 0:
-                            image_url = full_product_data['images'][0].get('src', '')
-                            logger.info(f"   🖼️ Using product image: {image_url[:50]}...")
+                            images = full_product_data['images']
+                            # Use modulo to cycle through images for different pins
+                            image_index = (pin_num - 1) % len(images)
+                            image_url = images[image_index].get('src', '')
+                            logger.info(f"   🖼️ Using unique image {image_index + 1}/{len(images)}: {image_url[:50]}...")
                         else:
                             logger.warning(f"   ⚠️ No product images found for {product_name}")
                         
@@ -786,6 +789,140 @@ def create_campaigns_for_sheet1():
         logger.error(f"❌ Error in campaign creation: {e}")
         return False
 
+def post_pins_until_rate_limit():
+    """Post pins continuously until rate limit is reached, then proceed"""
+    try:
+        logger.info("🚀 Starting continuous pin posting until rate limit...")
+        
+        # Connect to Sheet1
+        workbook = google_sheets_client.open_by_key(SHEET_ID)
+        sheet1 = workbook.worksheet('Sheet1')
+        
+        # Get Pinterest access token
+        access_token = get_access_token()
+        logger.info("✅ Pinterest authentication successful")
+        
+        # Get all data
+        data = sheet1.get_all_values()
+        logger.info(f"📊 Loaded {len(data)} rows from Sheet1")
+        
+        # Find empty rows
+        empty_rows = []
+        for i, row in enumerate(data[1:], 2):  # Skip header
+            if len(row) > 11:
+                status = row[11] if row[11] else 'EMPTY'  # Status column (column 12, index 11)
+                if status == 'EMPTY' or status == '':
+                    empty_rows.append((i, row))
+        
+        logger.info(f"📌 Found {len(empty_rows)} empty rows to process")
+        
+        if not empty_rows:
+            logger.info("✅ No empty rows found - all pins already posted")
+            return True
+        
+        # Process pins with rate limiting detection
+        posted_count = 0
+        failed_count = 0
+        rate_limited = False
+        
+        for i, (row_num, row) in enumerate(empty_rows):
+            try:
+                logger.info(f"📌 Processing row {row_num} ({i+1}/{len(empty_rows)})")
+                
+                # Extract data
+                image_url = row[0] if len(row) > 0 else ''
+                product_name = row[1] if len(row) > 1 else 'Unknown'
+                product_url = row[2] if len(row) > 2 else ''
+                
+                # Check if image URL is empty
+                if not image_url or image_url.strip() == '':
+                    logger.warning(f"⚠️ Empty image URL for row {row_num}: {product_name}")
+                    logger.warning(f"   ⚠️ Skipping row without image URL")
+                    failed_count += 1
+                    continue
+                
+                # Use fallback content generation
+                title = row[8] if len(row) > 8 else f"{product_name} - Jetzt entdecken!"
+                description = row[9] if len(row) > 9 else f"Entdecke {product_name} - Perfekt für deinen Style!"
+                board_title = row[10] if len(row) > 10 else 'Outfit Inspirationen'
+                
+                logger.info(f"   Product: {product_name[:50]}...")
+                logger.info(f"   Board: {board_title}")
+                
+                # Get or create board
+                board_id = get_or_create_board(access_token, board_title)
+                logger.info(f"   Board ID: {board_id}")
+                
+                # Post pin with rate limit detection
+                try:
+                    pin_id = post_pin(
+                        access_token, 
+                        board_id, 
+                        image_url, 
+                        title, 
+                        description, 
+                        product_url
+                    )
+                    
+                    if pin_id:
+                        # Update sheet with pin data
+                        update_sheet1_row(sheet1, row_num, {
+                            'status': 'POSTED',
+                            'board_id': board_id,
+                            'pin_id': pin_id
+                        })
+                        
+                        posted_count += 1
+                        logger.info(f"✅ Posted pin: {title[:50]}... (Pin ID: {pin_id})")
+                        
+                        # Check if we should continue or stop
+                        if posted_count % 50 == 0:  # Check every 50 pins
+                            logger.info(f"📊 Progress: {posted_count} pins posted, {len(empty_rows) - i - 1} remaining")
+                        
+                    else:
+                        logger.warning(f"⚠️ Failed to post pin for {product_name}")
+                        failed_count += 1
+                        
+                except Exception as pin_error:
+                    error_msg = str(pin_error).lower()
+                    if 'rate limit' in error_msg or '429' in error_msg or 'too many requests' in error_msg:
+                        logger.warning(f"⚠️ Rate limit detected: {pin_error}")
+                        logger.info(f"🛑 Stopping pin posting due to rate limit")
+                        rate_limited = True
+                        break
+                    else:
+                        logger.error(f"❌ Error posting pin for {product_name}: {pin_error}")
+                        failed_count += 1
+                        continue
+                
+                # Rate limiting delay
+                time.sleep(60)  # 60 second delay between posts
+                
+            except Exception as e:
+                logger.error(f"❌ Error processing row {row_num}: {e}")
+                failed_count += 1
+                continue
+        
+        # Summary
+        logger.info(f"🎯 Pin posting completed:")
+        logger.info(f"   ✅ Posted: {posted_count}")
+        logger.info(f"   ❌ Failed: {failed_count}")
+        logger.info(f"   📊 Total processed: {posted_count + failed_count}")
+        
+        if rate_limited:
+            logger.info(f"⚠️ Stopped due to rate limit - {len(empty_rows) - posted_count - failed_count} pins remaining")
+            logger.info(f"🔄 Will continue in next scheduled run")
+            return "RATE_LIMITED"
+        else:
+            logger.info(f"✅ All available pins processed successfully")
+            return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error in continuous pin posting: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 def main():
     """Main scheduler function for Sheet1"""
     logger.info("🚀 Starting Sheet1 Enhanced Scheduler")
@@ -823,12 +960,15 @@ def main():
             logger.info("🔄 Moving directly to campaign creation")
             pin_success = False  # Skip pin posting
         else:
-            pin_success = post_pins_to_sheet1(max_pins=20, delay_between_posts=60)  # Conservative settings
+            # Post pins until rate limit is reached, then proceed
+            pin_success = post_pins_until_rate_limit()
         
-        if pin_success:
+        if pin_success == "RATE_LIMITED":
+            logger.info("⚠️ Step 2: Pin posting stopped due to rate limit - will continue in next run")
+        elif pin_success:
             logger.info("✅ Step 2 completed: Pins posted successfully")
         else:
-            logger.info("⚠️ Step 2: Pin posting had issues (rate limiting expected)")
+            logger.info("⚠️ Step 2: Pin posting had issues")
         
         # Step 3: Create campaigns for posted pins (only on Sundays)
         if is_sunday:
@@ -843,7 +983,11 @@ def main():
             logger.info("⏭️ Step 3: Skipped campaign creation (not Sunday)")
             logger.info("📅 Campaign creation is scheduled for Sundays only")
         
-        logger.info("🎉 Sheet1 Enhanced Scheduler completed successfully!")
+        # Final summary
+        if pin_success == "RATE_LIMITED":
+            logger.info("🔄 Scheduler completed with rate limit - remaining pins will be processed in next run")
+        else:
+            logger.info("🎉 Sheet1 Enhanced Scheduler completed successfully!")
         
     except Exception as e:
         logger.error(f"❌ Scheduler error: {e}")
