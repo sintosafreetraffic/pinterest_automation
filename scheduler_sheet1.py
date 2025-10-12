@@ -916,7 +916,7 @@ def post_pins_until_rate_limit():
         if rate_limited:
             logger.info(f"⚠️ Stopped due to rate limit - {len(empty_rows) - posted_count - failed_count} pins remaining")
             logger.info(f"🔄 Will continue in next scheduled run")
-            return "RATE_LIMITED"
+            return True  # Return True even when rate limited
         else:
             logger.info(f"✅ All available pins processed successfully")
             return True
@@ -966,10 +966,9 @@ def main():
         else:
             # Post pins until rate limit is reached, then proceed
             pin_success = post_pins_until_rate_limit()
+            # Note: Function now returns True even when rate limited
         
-        if pin_success == "RATE_LIMITED":
-            logger.info("⚠️ Step 2: Pin posting stopped due to rate limit - will continue in next run")
-        elif pin_success:
+        if pin_success:
             logger.info("✅ Step 2 completed: Pins posted successfully")
         else:
             logger.info("⚠️ Step 2: Pin posting had issues")
@@ -988,10 +987,7 @@ def main():
             logger.info("📅 Campaign creation is scheduled for Sundays only")
         
         # Final summary
-        if pin_success == "RATE_LIMITED":
-            logger.info("🔄 Scheduler completed with rate limit - remaining pins will be processed in next run")
-        else:
-            logger.info("🎉 Sheet1 Enhanced Scheduler completed successfully!")
+        logger.info("🎉 Sheet1 Enhanced Scheduler completed successfully!")
         
     except Exception as e:
         logger.error(f"❌ Scheduler error: {e}")
