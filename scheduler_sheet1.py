@@ -649,10 +649,13 @@ def create_campaigns_for_sheet1():
                     product_name = row[1]  # Product name
                     pin_id = row[13] if len(row) > 13 and row[13] else ''
                     
-                    if pin_id:  # Only include rows with valid pin IDs
+                    # Only include rows with valid pin IDs (exclude 'RATE_LIMITED' and empty)
+                    if pin_id and pin_id != 'RATE_LIMITED' and pin_id.strip() != '':
                         if product_name not in product_pins:
                             product_pins[product_name] = []
                         product_pins[product_name].append((row_num, row, pin_id))
+                    else:
+                        logger.debug(f"⚠️ Skipping row {row_num} with invalid pin ID: '{pin_id}'")
             
             logger.info(f"📊 Found {len(product_pins)} unique products with pins")
             
@@ -888,6 +891,7 @@ def post_pins_until_rate_limit():
                     if 'rate limit' in error_msg or '429' in error_msg or 'too many requests' in error_msg:
                         logger.warning(f"⚠️ Rate limit detected: {pin_error}")
                         logger.info(f"🛑 Stopping pin posting due to rate limit")
+                        logger.info(f"📝 Leaving row {row_num} unchanged for next run")
                         rate_limited = True
                         break
                     else:
