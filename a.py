@@ -104,6 +104,531 @@ def load_second_sheet_data(sheet_id):
         print(f"[DEBUG] Full error traceback: {traceback.format_exc()}")
         return {}
 
+def load_second_sheet_data_with_facebook_scraping(sheet_id):
+    """Load data from the second sheet (Facebook URLs) and scrape actual creatives"""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        import asyncio
+        from final_facebook_scraper import FinalFacebookScraper
+        
+        print(f"[DEBUG] Loading second sheet with Facebook scraping: {sheet_id}")
+        
+        # Load credentials
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+        client = gspread.authorize(creds)
+        
+        # Open the second sheet
+        sheet = client.open_by_key(sheet_id).sheet1
+        
+        # Get raw data directly (ignore duplicate headers)
+        print(f"[DEBUG] Getting raw data from second sheet...")
+        raw_data = sheet.get_all_values()
+        if not raw_data or len(raw_data) < 2:
+            print(f"[DEBUG] No data found in second sheet")
+            return {}
+        
+        print(f"[DEBUG] Found {len(raw_data)} rows in second sheet")
+        
+        # Process data using column positions:
+        # Column E (index 4) = Product URL
+        # Columns J-M (indices 9-12) = Facebook URLs
+        product_media = {}
+        
+        for i, row in enumerate(raw_data[1:], 1):  # Skip header row
+            if len(row) > 12:  # Ensure we have enough columns
+                product_url = row[4] if len(row) > 4 else ""  # Column E
+                if product_url:
+                    # Get Facebook URLs from columns J-M (indices 9-12)
+                    facebook_urls = []
+                    for col_idx in range(9, 13):  # Columns J, K, L, M
+                        if col_idx < len(row) and row[col_idx]:
+                            facebook_urls.append(row[col_idx])
+                    
+                    if facebook_urls:
+                        print(f"[DEBUG] Row {i}: Found {len(facebook_urls)} Facebook URLs for {product_url}")
+                        
+                        # Scrape actual creatives from Facebook URLs
+                        scraped_creatives = []
+                        scraper = FinalFacebookScraper()
+                        
+                        for j, facebook_url in enumerate(facebook_urls):
+                            print(f"[DEBUG] Scraping Facebook URL {j+1}/{len(facebook_urls)}: {facebook_url[:100]}...")
+                            
+                            try:
+                                # Run the async scraper
+                                result = asyncio.run(scraper.scrape_facebook_ad_creative(facebook_url))
+                                
+                                if result['success']:
+                                    creative_data = {
+                                        'media_url': result['media_url'],
+                                        'media_type': result['media_type'],
+                                        'facebook_url': facebook_url,
+                                        'ad_id': result['ad_id']
+                                    }
+                                    scraped_creatives.append(creative_data)
+                                    print(f"[DEBUG] ✅ Successfully scraped {result['media_type']}: {result['media_url'][:100]}...")
+                                else:
+                                    print(f"[DEBUG] ❌ Failed to scrape {facebook_url}: {result['error']}")
+                                    
+                            except Exception as e:
+                                print(f"[DEBUG] ❌ Error scraping {facebook_url}: {e}")
+                                continue
+                        
+                        if scraped_creatives:
+                            product_media[product_url] = scraped_creatives
+                            print(f"[DEBUG] Row {i}: Successfully scraped {len(scraped_creatives)} creatives for {product_url}")
+                        else:
+                            print(f"[DEBUG] Row {i}: No valid creatives found for {product_url}")
+        
+        print(f"[DEBUG] Loaded scraped creatives for {len(product_media)} products")
+        return product_media
+        
+    except Exception as e:
+        print(f"❌ Error loading second sheet with Facebook scraping: {e}")
+        import traceback
+        print(f"[DEBUG] Full error traceback: {traceback.format_exc()}")
+        return {}
+
+def upload_scraped_creatives_to_pinterest(access_token, scraped_creatives, board_id, product_name, existing_pin_data=None, target_language="de"):
+    """Upload scraped creatives (from Facebook scraping) to Pinterest and create pins"""
+    created_pins = []  # List of (pin_id, media_type) tuples
+    
+    try:
+        print(f"   [DEBUG] Processing {len(scraped_creatives)} scraped creatives for {product_name}")
+        
+        for i, creative in enumerate(scraped_creatives):
+            try:
+                media_url = creative['media_url']
+                media_type = creative['media_type']
+                facebook_url = creative.get('facebook_url', '')
+                ad_id = creative.get('ad_id', '')
+                
+                print(f"   [DEBUG] Processing creative {i+1}/{len(scraped_creatives)}:")
+                print(f"   [DEBUG]   Media Type: {media_type}")
+                print(f"   [DEBUG]   Media URL: {media_url[:100]}...")
+                print(f"   [DEBUG]   Facebook URL: {facebook_url[:100]}...")
+                print(f"   [DEBUG]   Ad ID: {ad_id}")
+                
+                # Generate proper marketing-focused titles and descriptions
+                title = generate_pin_title(product_name, {}, existing_pin_data, target_language)
+                description = generate_pin_description(product_name, {}, existing_pin_data, target_language)
+                
+                # Create pin for this creative
+                result = upload_single_creative_to_pinterest(
+                    access_token, 
+                    media_url, 
+                    media_type, 
+                    board_id, 
+                    title, 
+                    description, 
+                    existing_pin_data, 
+                    product_name, 
+                    len(created_pins) + 1
+                )
+                
+                if result:
+                    pin_id, pin_media_type = result
+                    created_pins.append((pin_id, pin_media_type))
+                    print(f"   ✅ Created {media_type} pin {len(created_pins)}: {pin_id}")
+                else:
+                    print(f"   ❌ Failed to create {media_type} pin from scraped creative")
+                    
+            except Exception as e:
+                print(f"   [DEBUG] Error processing creative {i+1}: {e}")
+                continue
+        
+        print(f"   📊 Total scraped creatives processed: {len(created_pins)}")
+        return created_pins
+        
+    except Exception as e:
+        print(f"   [DEBUG] Error uploading scraped creatives: {e}")
+        return created_pins
+
+def generate_slideshow_video_creative(product_images, music_folder_path, output_path, duration_per_image=1.0):
+    """Generate a 10-second slideshow video with background music and text overlay"""
+    try:
+        import os
+        import random
+        import subprocess
+        from PIL import Image, ImageDraw, ImageFont
+
+        print(f"   [DEBUG] Generating slideshow video with {len(product_images)} images")
+
+        # Select up to 10 images (1 second each = 10 seconds total)
+        selected_images = product_images[:10]
+        if len(selected_images) < 10:
+            # Repeat images if we have fewer than 10
+            while len(selected_images) < 10:
+                selected_images.extend(product_images[:min(10-len(selected_images), len(product_images))])
+
+        # Get random music file from music folder
+        music_files = []
+        if os.path.exists(music_folder_path):
+            for file in os.listdir(music_folder_path):
+                if file.lower().endswith(('.mp3', '.wav', '.m4a', '.aac')):
+                    music_files.append(os.path.join(music_folder_path, file))
+
+        if not music_files:
+            print(f"   [DEBUG] No music files found in {music_folder_path}")
+            return None
+
+        selected_music = music_files[0]  # Use first music file
+        print(f"   [DEBUG] Using background music: {os.path.basename(selected_music)}")
+
+        # Create temporary directory for video frames
+        temp_dir = 'creative_examples/test_generation/temp_video_frames'
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Process images with quality enhancements
+        frame_size = (1080, 1080)  # Square format for Pinterest
+        frame_paths = []
+
+        for i, img_path in enumerate(selected_images):
+            try:
+                # Load and enhance image quality
+                img = Image.open(img_path)
+                img = img.resize(frame_size, Image.Resampling.LANCZOS)
+                
+                # Apply quality enhancements
+                from PIL import ImageEnhance
+                enhancer = ImageEnhance.Sharpness(img)
+                img = enhancer.enhance(1.2)  # Increase sharpness
+                
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.1)  # Increase contrast slightly
+                
+                # Save as frame
+                frame_path = f'{temp_dir}/frame_{i:03d}.jpg'
+                img.save(frame_path, 'JPEG', quality=100, optimize=True)
+                frame_paths.append(frame_path)
+                print(f'   [DEBUG] Created enhanced frame {i+1}/{len(selected_images)}')
+                
+            except Exception as e:
+                print(f'   [DEBUG] Error processing image {i+1}: {e}')
+                continue
+
+        print(f"   [DEBUG] Created {len(frame_paths)} enhanced video frames")
+
+        # Create video using ffmpeg with text overlay
+        print(f"   [DEBUG] Creating video with ffmpeg and text overlay...")
+
+        try:
+            # Create video from images (1 second per image)
+            ffmpeg_cmd = [
+                'ffmpeg',
+                '-y',  # Overwrite output file
+                '-framerate', '1',  # 1 frame per second
+                '-i', f'{temp_dir}/frame_%03d.jpg',  # Input pattern
+                '-i', selected_music,  # Audio input
+                '-c:v', 'libx264',  # Video codec
+                '-c:a', 'aac',  # Audio codec
+                '-pix_fmt', 'yuv420p',  # Pixel format for compatibility
+                '-shortest',  # End when shortest input ends
+                '-r', '24',  # Output frame rate
+                '-vf', 'drawtext=fontfile=/System/Library/Fonts/Arial.ttf:text="Jetzt kaufen – 50% Rabatt für kurze Zeit":fontsize=60:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.8:boxborderw=10:enable=\'between(t,7,10)\'',
+                output_path
+            ]
+            
+            print(f"   [DEBUG] Running ffmpeg with text overlay...")
+            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"   ✅ Generated slideshow video with text overlay: {output_path}")
+            else:
+                print(f"   [DEBUG] FFmpeg error: {result.stderr}")
+                # Fallback without text overlay
+                print(f"   [DEBUG] Creating fallback video without text overlay...")
+                ffmpeg_cmd_fallback = [
+                    'ffmpeg',
+                    '-y',
+                    '-framerate', '1',
+                    '-i', f'{temp_dir}/frame_%03d.jpg',
+                    '-i', selected_music,
+                    '-c:v', 'libx264',
+                    '-c:a', 'aac',
+                    '-pix_fmt', 'yuv420p',
+                    '-shortest',
+                    '-r', '24',
+                    output_path
+                ]
+                result = subprocess.run(ffmpeg_cmd_fallback, capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"   ✅ Generated slideshow video (fallback): {output_path}")
+                else:
+                    print(f"   ❌ Failed to create video: {result.stderr}")
+                    return None
+                    
+        except Exception as e:
+            print(f"   [DEBUG] Error creating video: {e}")
+            return None
+
+        # Clean up temporary frames
+        print(f"   [DEBUG] Cleaning up temporary files...")
+        for frame_path in frame_paths:
+            try:
+                os.remove(frame_path)
+            except:
+                pass
+
+        try:
+            os.rmdir(temp_dir)
+        except:
+            pass
+
+        print(f"   ✅ Generated enhanced slideshow video: {output_path}")
+        return output_path
+
+    except Exception as e:
+        print(f"   [DEBUG] Error generating slideshow video: {e}")
+        return None
+
+def generate_quad_image_creative(product_images, output_path):
+    """Generate a 4-quadrant image creative"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import os
+        
+        print(f"   [DEBUG] Generating 4-quadrant image with {len(product_images)} images")
+        
+        # Select 4 images
+        selected_images = product_images[:4]
+        if len(selected_images) < 4:
+            # Repeat images if we have fewer than 4
+            while len(selected_images) < 4:
+                selected_images.extend(product_images[:min(4-len(selected_images), len(product_images))])
+        
+        # Create a square canvas (1080x1080 for Pinterest)
+        canvas_size = 1080
+        canvas = Image.new('RGB', (canvas_size, canvas_size), 'white')
+        
+        # Calculate quadrant size
+        quadrant_size = canvas_size // 2
+        
+        # Place images in quadrants
+        for i, image_path in enumerate(selected_images[:4]):
+            try:
+                # Load and resize image
+                img = Image.open(image_path)
+                img = img.resize((quadrant_size, quadrant_size), Image.Resampling.LANCZOS)
+                
+                # Calculate position
+                x = (i % 2) * quadrant_size
+                y = (i // 2) * quadrant_size
+                
+                # Paste image onto canvas
+                canvas.paste(img, (x, y))
+                
+            except Exception as e:
+                print(f"   [DEBUG] Error processing image {i+1}: {e}")
+                continue
+        
+        # Add subtle border between quadrants
+        draw = ImageDraw.Draw(canvas)
+        # Vertical line
+        draw.line([(quadrant_size, 0), (quadrant_size, canvas_size)], fill='lightgray', width=2)
+        # Horizontal line
+        draw.line([(0, quadrant_size), (canvas_size, quadrant_size)], fill='lightgray', width=2)
+        
+        # Save the image
+        canvas.save(output_path, 'JPEG', quality=95)
+        
+        print(f"   ✅ Generated 4-quadrant image: {output_path}")
+        return output_path
+        
+    except Exception as e:
+        print(f"   [DEBUG] Error generating 4-quadrant image: {e}")
+        return None
+
+def generate_enhanced_showcase_creative(product_images, output_path):
+    """Generate an enhanced product showcase with full-page coverage and high quality"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+        import os
+
+        print(f"   [DEBUG] Generating enhanced showcase creative with {len(product_images)} images")
+
+        if len(product_images) < 1:
+            print(f"   [DEBUG] Need at least 1 image for showcase")
+            return None
+
+        # Create a high-quality canvas (1080x1080 for Pinterest)
+        canvas_size = 1080
+        canvas = Image.new('RGB', (canvas_size, canvas_size), 'black')  # Black background for better contrast
+
+        # Select up to 4 images for showcase
+        selected_images = product_images[:4]
+        if len(selected_images) < 4:
+            # Repeat images if we have fewer than 4
+            while len(selected_images) < 4:
+                selected_images.extend(product_images[:min(4-len(selected_images), len(product_images))])
+
+        # Calculate grid layout (2x2)
+        quadrant_size = canvas_size // 2
+        positions = [(0, 0), (quadrant_size, 0), (0, quadrant_size), (quadrant_size, quadrant_size)]
+
+        for i, (x, y) in enumerate(positions):
+            if i < len(selected_images):
+                try:
+                    # Load and enhance image quality
+                    img = Image.open(selected_images[i])
+                    
+                    # Enhance image quality
+                    img = img.resize((quadrant_size, quadrant_size), Image.Resampling.LANCZOS)
+                    
+                    # Apply quality enhancements
+                    enhancer = ImageEnhance.Sharpness(img)
+                    img = enhancer.enhance(1.2)  # Increase sharpness
+                    
+                    enhancer = ImageEnhance.Contrast(img)
+                    img = enhancer.enhance(1.1)  # Increase contrast slightly
+                    
+                    # Paste image onto canvas with no gaps
+                    canvas.paste(img, (x, y))
+                    
+                except Exception as e:
+                    print(f"   [DEBUG] Error processing image {i+1}: {e}")
+                    continue
+
+        # Add subtle border between quadrants (optional)
+        draw = ImageDraw.Draw(canvas)
+        draw.line([(quadrant_size, 0), (quadrant_size, canvas_size)], fill='white', width=2)
+        draw.line([(0, quadrant_size), (canvas_size, quadrant_size)], fill='white', width=2)
+
+        # Save with maximum quality
+        canvas.save(output_path, 'JPEG', quality=100, optimize=True)
+
+        print(f"   ✅ Generated enhanced showcase creative: {output_path}")
+        return output_path
+
+    except Exception as e:
+        print(f"   [DEBUG] Error generating enhanced showcase creative: {e}")
+        return None
+
+def generate_carousel_style_creative(product_images, output_path):
+    """Generate a carousel-style creative showing multiple products"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import os
+        
+        print(f"   [DEBUG] Generating carousel-style creative with {len(product_images)} images")
+        
+        # Select up to 6 images for carousel
+        selected_images = product_images[:6]
+        
+        # Create canvas (1080x1920 for Pinterest story format)
+        canvas_width = 1080
+        canvas_height = 1920
+        canvas = Image.new('RGB', (canvas_width, canvas_height), 'white')
+        
+        # Calculate image positions (3x2 grid)
+        img_width = 300
+        img_height = 300
+        margin = 50
+        
+        for i, image_path in enumerate(selected_images):
+            try:
+                # Load and resize image
+                img = Image.open(image_path)
+                img = img.resize((img_width, img_height), Image.Resampling.LANCZOS)
+                
+                # Calculate position
+                x = margin + (i % 3) * (img_width + margin)
+                y = margin + (i // 3) * (img_height + margin)
+                
+                # Paste image onto canvas
+                canvas.paste(img, (x, y))
+                
+            except Exception as e:
+                print(f"   [DEBUG] Error processing image {i+1}: {e}")
+                continue
+        
+        # Add title at the top
+        draw = ImageDraw.Draw(canvas)
+        try:
+            title_font = ImageFont.truetype("arial.ttf", 60)
+            subtitle_font = ImageFont.truetype("arial.ttf", 40)
+        except:
+            title_font = ImageFont.load_default()
+            subtitle_font = ImageFont.load_default()
+        
+        draw.text((canvas_width//2 - 200, 50), "SHOP THE LOOK", fill='black', font=title_font)
+        draw.text((canvas_width//2 - 150, 120), "Multiple Styles Available", fill='gray', font=subtitle_font)
+        
+        # Save the image
+        canvas.save(output_path, 'JPEG', quality=95)
+        
+        print(f"   ✅ Generated carousel-style creative: {output_path}")
+        return output_path
+        
+    except Exception as e:
+        print(f"   [DEBUG] Error generating carousel-style creative: {e}")
+        return None
+
+def generate_all_creative_variations(product_images, product_name, output_dir, music_folder_path):
+    """Generate all creative variations for a product"""
+    try:
+        import os
+
+        print(f"   [DEBUG] Generating all creative variations for {product_name}")
+
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        generated_creatives = []
+
+        # 1. Slideshow video with music and text overlay
+        if len(product_images) >= 2:
+            slideshow_path = os.path.join(output_dir, f"{product_name}_slideshow.mp4")
+            slideshow_result = generate_slideshow_video_creative(product_images, music_folder_path, slideshow_path)
+            if slideshow_result:
+                generated_creatives.append({
+                    'type': 'slideshow_video',
+                    'path': slideshow_result,
+                    'media_type': 'video'
+                })
+
+        # 2. Enhanced 4-quadrant image with quality improvements
+        if len(product_images) >= 2:
+            quad_path = os.path.join(output_dir, f"{product_name}_quad.jpg")
+            quad_result = generate_quad_image_creative(product_images, quad_path)
+            if quad_result:
+                generated_creatives.append({
+                    'type': 'quad_image',
+                    'path': quad_result,
+                    'media_type': 'image'
+                })
+
+        # 3. Enhanced showcase creative (replaces before/after)
+        if len(product_images) >= 1:
+            showcase_path = os.path.join(output_dir, f"{product_name}_showcase.jpg")
+            showcase_result = generate_enhanced_showcase_creative(product_images, showcase_path)
+            if showcase_result:
+                generated_creatives.append({
+                    'type': 'enhanced_showcase',
+                    'path': showcase_result,
+                    'media_type': 'image'
+                })
+
+        # 4. Carousel-style creative
+        if len(product_images) >= 2:
+            carousel_path = os.path.join(output_dir, f"{product_name}_carousel.jpg")
+            carousel_result = generate_carousel_style_creative(product_images, carousel_path)
+            if carousel_result:
+                generated_creatives.append({
+                    'type': 'carousel',
+                    'path': carousel_result,
+                    'media_type': 'image'
+                })
+
+        print(f"   ✅ Generated {len(generated_creatives)} creative variations")
+        return generated_creatives
+
+    except Exception as e:
+        print(f"   [DEBUG] Error generating creative variations: {e}")
+        return []
+
 def get_product_id_by_handle_and_collection(product_handle, collection_id):
     """Get product ID from Shopify using product handle and collection ID"""
     try:
@@ -1987,6 +2512,191 @@ def run(campaign_mode="single_product", products_per_campaign=1, daily_budget=10
     print("[DEBUG] Batch updates to write:", batch_updates)   # Also print batch_updates
     batch_write_to_sheet(sheet, batch_updates)
 
+
+def generate_extra_creatives_for_non_active_rows(sheet_data, music_folder_path="music", output_dir="creative_examples/generated_creatives"):
+    """
+    Generate 4 creative types for products with non-ACTIVE rows
+    """
+    try:
+        import os
+        from collections import defaultdict
+        
+        print(f"🎨 Starting extra creative generation for non-ACTIVE rows...")
+        
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Group rows by product name, filtering for non-ACTIVE rows
+        product_groups = defaultdict(list)
+        non_active_count = 0
+        
+        for row_idx, row in enumerate(sheet_data):
+            if len(row) > 10:  # Ensure we have enough columns
+                product_name = row[1] if len(row) > 1 else ""  # Column B
+                status2 = row[10] if len(row) > 10 else ""  # Column K (Status2)
+                
+                if product_name and status2 != 'ACTIVE':
+                    product_groups[product_name].append((row_idx, row))
+                    non_active_count += 1
+        
+        print(f"📊 Found {non_active_count} non-ACTIVE rows across {len(product_groups)} products")
+        
+        if not product_groups:
+            print("✅ No non-ACTIVE rows found - all campaigns are already active!")
+            return {}
+        
+        # Process each product group
+        generated_creatives = {}
+        
+        for product_name, rows in product_groups.items():
+            print(f"\n🎯 Processing product: {product_name} ({len(rows)} non-ACTIVE rows)")
+            
+            # Get existing pin data from first row for this product
+            first_row = rows[0][1]  # Get the row data
+            existing_pin_data = {
+                'pin_title': first_row[2] if len(first_row) > 2 else "",  # Column C
+                'pin_description': first_row[3] if len(first_row) > 3 else "",  # Column D
+                'board_title': first_row[4] if len(first_row) > 4 else "",  # Column E
+            }
+            
+            print(f"   📝 Using existing pin data: {existing_pin_data}")
+            
+            # Find product images from main sheet for this product
+            product_images = []
+            for row_idx, row in sheet_data:
+                if len(row) > 1 and row[1] == product_name:  # Same product name
+                    # Look for image URLs in columns (assuming images are in later columns)
+                    for col_idx in range(5, min(len(row), 15)):  # Check columns F-O
+                        if row[col_idx] and (row[col_idx].startswith('http') or row[col_idx].endswith(('.jpg', '.jpeg', '.png', '.gif'))):
+                            product_images.append(row[col_idx])
+            
+            print(f"   📸 Found {len(product_images)} images for {product_name}")
+            
+            if len(product_images) < 2:
+                print(f"   ⚠️ Not enough images for {product_name} (need at least 2, found {len(product_images)})")
+                continue
+            
+            # Generate 4 creative types
+            product_creatives = {}
+            
+            # 1. Slideshow Video
+            slideshow_path = os.path.join(output_dir, f"{product_name}_slideshow.mp4")
+            slideshow_result = generate_slideshow_video_creative(product_images, music_folder_path, slideshow_path)
+            if slideshow_result:
+                product_creatives['slideshow'] = slideshow_path
+                print(f"   ✅ Generated slideshow video: {slideshow_path}")
+            
+            # 2. Quadrant Creative
+            quadrant_path = os.path.join(output_dir, f"{product_name}_quadrant.jpg")
+            quadrant_result = generate_quad_image_creative(product_images, quadrant_path)
+            if quadrant_result:
+                product_creatives['quadrant'] = quadrant_path
+                print(f"   ✅ Generated quadrant creative: {quadrant_path}")
+            
+            # 3. Showcase Creative
+            showcase_path = os.path.join(output_dir, f"{product_name}_showcase.jpg")
+            showcase_result = generate_enhanced_showcase_creative(product_images, showcase_path)
+            if showcase_result:
+                product_creatives['showcase'] = showcase_path
+                print(f"   ✅ Generated showcase creative: {showcase_path}")
+            
+            # 4. Carousel Creative
+            carousel_path = os.path.join(output_dir, f"{product_name}_carousel.jpg")
+            carousel_result = generate_carousel_style_creative(product_images, carousel_path)
+            if carousel_result:
+                product_creatives['carousel'] = carousel_path
+                print(f"   ✅ Generated carousel creative: {carousel_path}")
+            
+            if product_creatives:
+                generated_creatives[product_name] = {
+                    'creatives': product_creatives,
+                    'pin_data': existing_pin_data,
+                    'rows': rows
+                }
+                print(f"   🎉 Generated {len(product_creatives)} creatives for {product_name}")
+            else:
+                print(f"   ❌ Failed to generate any creatives for {product_name}")
+        
+        print(f"\n🎨 Extra creative generation completed!")
+        print(f"📊 Generated creatives for {len(generated_creatives)} products")
+        
+        return generated_creatives
+        
+    except Exception as e:
+        print(f"❌ Error in generate_extra_creatives_for_non_active_rows: {e}")
+        return {}
+
+def add_creative_rows_to_sheet(sheet, generated_creatives):
+    """
+    Add new rows to the sheet for generated creatives
+    """
+    try:
+        print(f"📝 Adding creative rows to sheet...")
+        
+        # Get current sheet data
+        headers, data_rows = get_sheet_data(sheet)
+        print(f"📊 Current sheet has {len(data_rows)} rows")
+        
+        # Prepare new rows
+        new_rows = []
+        
+        for product_name, product_data in generated_creatives.items():
+            creatives = product_data['creatives']
+            pin_data = product_data['pin_data']
+            existing_rows = product_data['rows']
+            
+            print(f"   📝 Adding {len(creatives)} creative rows for {product_name}")
+            
+            # Find the last row for this product to insert after it
+            last_row_idx = max([row_idx for row_idx, _ in existing_rows])
+            
+            for creative_type, creative_path in creatives.items():
+                # Create new row data
+                new_row = [''] * len(headers)  # Initialize with empty values
+                
+                # Fill in the data
+                new_row[0] = ''  # Column A - Auto-generated
+                new_row[1] = product_name  # Column B - Product Name
+                new_row[2] = pin_data['pin_title']  # Column C - Pin Title
+                new_row[3] = pin_data['pin_description']  # Column D - Pin Description
+                new_row[4] = pin_data['board_title']  # Column E - Board Title
+                new_row[5] = creative_path  # Column F - Creative Path
+                new_row[6] = creative_type  # Column G - Creative Type
+                new_row[7] = 'READY'  # Column H - Status
+                new_row[8] = ''  # Column I - Pin ID (will be filled after posting)
+                new_row[9] = ''  # Column J - Ad Campaign Status
+                new_row[10] = 'PENDING'  # Column K - Status2
+                new_row[11] = ''  # Column L - Ad Campaign ID
+                new_row[12] = ''  # Column M - Advertised At
+                
+                new_rows.append({
+                    'row_index': last_row_idx + 1,
+                    'data': new_row
+                })
+                
+                print(f"     ✅ Prepared {creative_type} creative row for {product_name}")
+        
+        # Add rows to sheet
+        if new_rows:
+            print(f"📝 Adding {len(new_rows)} new rows to sheet...")
+            
+            # Sort by row index to insert in correct order
+            new_rows.sort(key=lambda x: x['row_index'])
+            
+            for row_data in new_rows:
+                try:
+                    # Insert row at the specified index
+                    sheet.insert_row(row_data['data'], row_data['row_index'] + 1)  # +1 because sheets are 1-indexed
+                    print(f"   ✅ Added row at index {row_data['row_index']}")
+                except Exception as e:
+                    print(f"   ❌ Failed to add row at index {row_data['row_index']}: {e}")
+            
+            print(f"🎉 Successfully added {len(new_rows)} creative rows to sheet!")
+        else:
+            print("ℹ️ No new rows to add")
+            
+    except Exception as e:
+        print(f"❌ Error adding creative rows to sheet: {e}")
 
 if __name__ == "__main__":
     run()
