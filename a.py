@@ -1046,8 +1046,11 @@ def generate_pin_title(product_name, creative_data, existing_pin_data=None, targ
         
         print(f"   [DEBUG] Using target language: {language}")
         
-        # Clean product name
-        clean_name = product_name.replace('|', '').strip()
+        # Extract product name (remove human name part before |)
+        if '|' in product_name:
+            clean_name = product_name.split('|')[1].strip()  # Get part after |
+        else:
+            clean_name = product_name.strip()
         
         if language == 'de':  # German
             # Extract key product features from the name
@@ -1094,8 +1097,11 @@ def generate_pin_description(product_name, creative_data, existing_pin_data=None
         # Use the manually selected target language
         language = target_language
         
-        # Clean product name
-        clean_name = product_name.replace('|', '').strip()
+        # Extract product name (remove human name part before |)
+        if '|' in product_name:
+            clean_name = product_name.split('|')[1].strip()  # Get part after |
+        else:
+            clean_name = product_name.strip()
         
         if language == 'de':  # German
             # Choose description based on product type
