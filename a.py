@@ -2510,14 +2510,176 @@ def run(campaign_mode="single_product", products_per_campaign=1, daily_budget=10
         print(f"[DEBUG] Second sheet processing disabled or no sheet ID provided")
         print(f"[DEBUG] enable_second_sheet: {enable_second_sheet}, second_sheet_id: {second_sheet_id}")
 
-    # After processing all products, update the sheet in one batch:
+    # === EXTRA CREATIVE GENERATION AND INTEGRATION ===
+    print(f"\n🎨 Starting extra creative generation and campaign integration...")
+    
+    # Get sheet data for extra creative generation
     sheet = get_sheet_cached()
     headers, data_rows = get_sheet_data(sheet)
-    print("[DEBUG] Sheet headers:", headers)   # <--- Moved here!
+    
+    # Generate extra creatives for non-ACTIVE rows
+    generated_creatives = generate_extra_creatives_for_non_active_rows(
+        data_rows, 
+        music_folder_path="music", 
+        output_dir="creative_examples/generated_creatives"
+    )
+    
+    if generated_creatives:
+        print(f"🎉 Generated {len(generated_creatives)} product groups with extra creatives")
+        
+        # Process each product's extra creatives
+        for product_name, product_data in generated_creatives.items():
+            print(f"\n🎯 Processing extra creatives for: {product_name}")
+            
+            # Check if this product has an existing campaign
+            if product_name in campaign_tracking:
+                campaign_id = campaign_tracking[product_name]['campaign_id']
+                ad_group_id = campaign_tracking[product_name]['ad_group_id']
+                
+                print(f"   ✅ Found existing campaign {campaign_id} and ad group {ad_group_id}")
+                
+                # Get existing pin data for board reference
+                existing_pin_data = product_data['pin_data']
+                board_title = existing_pin_data.get('board_title', '')
+                
+                if board_title:
+                    # Get board ID from Pinterest
+                    board_id = get_board_id_by_title(access_token, board_title)
+                    if not board_id:
+                        # Try to find board by partial name match
+                        board_id = find_board_by_partial_name(access_token, board_title)
+                    
+                    if board_id:
+                        print(f"   📌 Using board ID: {board_id}")
+                        
+                        # Process each creative type
+                        creatives = product_data['creatives']
+                        for creative_type, creative_path in creatives.items():
+                            print(f"   🎨 Processing {creative_type} creative: {creative_path}")
+                            
+                            # Post creative to Pinterest
+                            new_pin_id = post_creative_to_pinterest(
+                                access_token, 
+                                creative_path, 
+                                board_id, 
+                                product_name, 
+                                existing_pin_data, 
+                                creative_type
+                            )
+                            
+                            if new_pin_id:
+                                print(f"   ✅ Posted {creative_type} creative as pin: {new_pin_id}")
+                                
+                                # Create ad for the new pin in existing campaign
+                                ad_name = f"{product_name} - {creative_type.title()} Creative Ad"
+                                creative_type_for_ad = "VIDEO" if creative_type == "slideshow" else "REGULAR"
+                                
+                                ad_id = create_ad(access_token, ad_account_id, ad_group_id, new_pin_id, ad_name, creative_type_for_ad)
+                                
+                                if ad_id:
+                                    print(f"   ✅ Created ad {ad_id} for {creative_type} creative")
+                                    
+                                    # Update tracking
+                                    from datetime import datetime
+                                    today = datetime.now().strftime('%Y-%m-%d')
+                                    pin_updates[new_pin_id] = {
+                                        'Ad Campaign Status': 'ACTIVE',
+                                        'Ad Campaign ID': campaign_id,
+                                        'Advertised At': today
+                                    }
+                                    
+                                    # Track the new pin
+                                    campaign_tracking[product_name]['pins'].append(new_pin_id)
+                                    
+                                    print(f"   🎉 Successfully integrated {creative_type} creative into campaign {campaign_id}")
+                                else:
+                                    print(f"   ❌ Failed to create ad for {creative_type} creative")
+                            else:
+                                print(f"   ❌ Failed to post {creative_type} creative to Pinterest")
+                    else:
+                        print(f"   ⚠️ Could not find board for {product_name}, skipping extra creatives")
+                else:
+                    print(f"   ⚠️ No board title found for {product_name}, skipping extra creatives")
+            else:
+                print(f"   ⚠️ No existing campaign found for {product_name}, skipping extra creatives")
+    else:
+        print(f"ℹ️ No extra creatives generated - all rows are ACTIVE or no eligible products found")
+
+    # After processing all products (including extra creatives), update the sheet in one batch:
+    print(f"\n📝 Updating sheet with all campaign data...")
+    print("[DEBUG] Sheet headers:", headers)
     batch_updates = plan_batch_updates(headers, data_rows, pin_updates)
-    print("[DEBUG] Batch updates to write:", batch_updates)   # Also print batch_updates
+    print("[DEBUG] Batch updates to write:", batch_updates)
     batch_write_to_sheet(sheet, batch_updates)
 
+
+def post_creative_to_pinterest(access_token, creative_path, board_id, product_name, existing_pin_data, creative_type):
+    """
+    Post a generated creative to Pinterest and return the pin ID
+    """
+    try:
+        import os
+        from pinterest_post import post_pin
+        
+        print(f"   📌 Posting {creative_type} creative to Pinterest...")
+        
+        # Check if creative_path is a local file or URL
+        if os.path.exists(creative_path) and not creative_path.startswith('http'):
+            print(f"   ⚠️ Local file detected: {creative_path}")
+            print(f"   ⚠️ Pinterest requires URLs, not local files. Skipping {creative_type} creative.")
+            print(f"   💡 To fix: Upload the creative to a hosting service and use the URL")
+            return None
+        
+        # Generate pin title and description based on creative type
+        pin_title = generate_pin_title_for_creative(product_name, creative_type, existing_pin_data)
+        pin_description = generate_pin_description_for_creative(product_name, creative_type, existing_pin_data)
+        
+        # Post the creative to Pinterest
+        pin_id = post_pin(
+            access_token=access_token,
+            board_id=board_id,
+            image_url=creative_path,  # Should be a URL
+            title=pin_title,
+            description=pin_description,
+            link=""  # No product link for generated creatives
+        )
+        
+        if pin_id:
+            print(f"   ✅ Successfully posted {creative_type} creative as pin: {pin_id}")
+            return pin_id
+        else:
+            print(f"   ❌ Failed to post {creative_type} creative to Pinterest")
+            return None
+            
+    except Exception as e:
+        print(f"   ❌ Error posting {creative_type} creative: {e}")
+        return None
+
+def generate_pin_title_for_creative(product_name, creative_type, existing_pin_data):
+    """Generate a pin title for a creative type"""
+    base_title = existing_pin_data.get('pin_title', f"{product_name} - Premium Quality")
+    
+    creative_type_titles = {
+        'slideshow': f"🎬 {base_title} - Video Showcase",
+        'quadrant': f"🎨 {base_title} - Style Guide", 
+        'showcase': f"✨ {base_title} - Premium Collection",
+        'carousel': f"🔄 {base_title} - Multiple Looks"
+    }
+    
+    return creative_type_titles.get(creative_type, base_title)
+
+def generate_pin_description_for_creative(product_name, creative_type, existing_pin_data):
+    """Generate a pin description for a creative type"""
+    base_description = existing_pin_data.get('pin_description', f"Entdecke {product_name} - Perfekt für deinen Style!")
+    
+    creative_type_descriptions = {
+        'slideshow': f"🎬 {base_description} - Video-Showcase mit verschiedenen Looks! #Video #Style",
+        'quadrant': f"🎨 {base_description} - Style-Guide mit 4 verschiedenen Outfits! #StyleGuide #Fashion",
+        'showcase': f"✨ {base_description} - Premium-Kollektion mit mehreren Varianten! #Premium #Collection", 
+        'carousel': f"🔄 {base_description} - Mehrere Looks in einem Pin! #Carousel #MultipleLooks"
+    }
+    
+    return creative_type_descriptions.get(creative_type, base_description)
 
 def generate_extra_creatives_for_non_active_rows(sheet_data, music_folder_path="music", output_dir="creative_examples/generated_creatives"):
     """
