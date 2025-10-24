@@ -103,10 +103,15 @@ def get_product_image_url(product_url, product_name="", pin_number=1):
             if 'images' in product and product['images'] and len(product['images']) > 0:
                 images = product['images']
                 # Use modulo to cycle through images for different pins
-                image_index = (pin_number - 1) % len(images)
-                image_url = images[image_index].get('src', '')
-                print(f"   🖼️ Found image {image_index + 1}/{len(images)}: {image_url[:50]}...")
-                return image_url
+                # Fix: Check if images list is not empty before using modulo
+                if len(images) > 0:
+                    image_index = (pin_number - 1) % len(images)
+                    image_url = images[image_index].get('src', '')
+                    print(f"   🖼️ Found image {image_index + 1}/{len(images)}: {image_url[:50]}...")
+                    return image_url
+                else:
+                    print(f"   ⚠️ Images list is empty")
+                    return None
             else:
                 print(f"   ⚠️ No images found for product")
                 return None
@@ -259,9 +264,14 @@ def fix_missing_image_urls():
                 if scraped_data and scraped_data['images']:
                     images = scraped_data['images']
                     # Use modulo to cycle through images for different pins
-                    image_index = (pin_number - 1) % len(images)
-                    image_url = images[image_index]
-                    print(f"   🖼️ Found image {image_index + 1}/{len(images)} via scraping: {image_url[:50]}...")
+                    # Fix: Check if images list is not empty before using modulo
+                    if len(images) > 0:
+                        image_index = (pin_number - 1) % len(images)
+                        image_url = images[image_index]
+                        print(f"   🖼️ Found image {image_index + 1}/{len(images)} via scraping: {image_url[:50]}...")
+                    else:
+                        print(f"   ⚠️ Scraped images list is empty")
+                        image_url = None
             
             if image_url:
                 # Update the row in Google Sheet

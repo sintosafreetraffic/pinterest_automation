@@ -309,9 +309,13 @@ def generate_content_and_move_products():
                         if full_product_data and 'images' in full_product_data and full_product_data['images'] and len(full_product_data['images']) > 0:
                             images = full_product_data['images']
                             # Use modulo to cycle through images for different pins
-                            image_index = (pin_num - 1) % len(images)
-                            image_url = images[image_index].get('src', '')
-                            logger.info(f"   🖼️ Using unique image {image_index + 1}/{len(images)}: {image_url[:50]}...")
+                            # Fix: Check if images list is not empty before using modulo
+                            if len(images) > 0:
+                                image_index = (pin_num - 1) % len(images)
+                                image_url = images[image_index].get('src', '')
+                                logger.info(f"   🖼️ Using unique image {image_index + 1}/{len(images)}: {image_url[:50]}...")
+                            else:
+                                logger.warning(f"   ⚠️ Images list is empty for {product_name}")
                         else:
                             logger.warning(f"   ⚠️ No product images found for {product_name}")
                         
