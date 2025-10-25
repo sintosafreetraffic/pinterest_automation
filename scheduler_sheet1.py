@@ -323,19 +323,36 @@ def generate_content_and_move_products():
                         else:
                             logger.warning(f"   ⚠️ No product images found for {product_name}")
                         
-                        # Set the values in appropriate columns
+                        # Set the values in appropriate columns with bounds checking
                         # Column A (index 0) should be the image URL
-                        new_row[0] = image_url
-                        if product_url_idx is not None:
+                        if len(new_row) > 0:
+                            new_row[0] = image_url
+                        
+                        # Add bounds checking for all column assignments
+                        if product_url_idx is not None and product_url_idx < len(new_row):
                             new_row[product_url_idx] = product_url
-                        if product_name_idx is not None:
+                        elif product_url_idx is not None:
+                            logger.warning(f"   ⚠️ Product URL index {product_url_idx} out of bounds (row length: {len(new_row)})")
+                        
+                        if product_name_idx is not None and product_name_idx < len(new_row):
                             new_row[product_name_idx] = product_name
-                        if pin_title_idx is not None:
+                        elif product_name_idx is not None:
+                            logger.warning(f"   ⚠️ Product name index {product_name_idx} out of bounds (row length: {len(new_row)})")
+                        
+                        if pin_title_idx is not None and pin_title_idx < len(new_row):
                             new_row[pin_title_idx] = pin_title
-                        if pin_description_idx is not None:
+                        elif pin_title_idx is not None:
+                            logger.warning(f"   ⚠️ Pin title index {pin_title_idx} out of bounds (row length: {len(new_row)})")
+                        
+                        if pin_description_idx is not None and pin_description_idx < len(new_row):
                             new_row[pin_description_idx] = pin_description
-                        if board_title_idx is not None:
+                        elif pin_description_idx is not None:
+                            logger.warning(f"   ⚠️ Pin description index {pin_description_idx} out of bounds (row length: {len(new_row)})")
+                        
+                        if board_title_idx is not None and board_title_idx < len(new_row):
                             new_row[board_title_idx] = board_title
+                        elif board_title_idx is not None:
+                            logger.warning(f"   ⚠️ Board title index {board_title_idx} out of bounds (row length: {len(new_row)})")
                         
                         # Add row to sheet with retry logic for rate limiting
                         max_retries = 3
