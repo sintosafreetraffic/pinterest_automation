@@ -244,12 +244,12 @@ def generate_content_and_move_products():
                     
                     api_version = "2024-04"
                     url = f"https://{SHOPIFY_STORE_URL}/admin/api/{api_version}/products/{product_id}.json"
-                    headers = {
+                    request_headers = {
                         "X-Shopify-Access-Token": SHOPIFY_API_KEY,
                         "Content-Type": "application/json"
                     }
                     
-                    response = requests.get(url, headers=headers)
+                    response = requests.get(url, headers=request_headers)
                     response.raise_for_status()
                     
                     data = response.json()
