@@ -220,6 +220,7 @@ def generate_content_and_move_products():
         # Process each product in READY FOR PINTEREST collection
         total_pins_generated = 0
         products_processed = 0
+        rate_limit_hit = False
         
         for product in ready_products:
             try:
@@ -257,6 +258,9 @@ def generate_content_and_move_products():
                 
                 # Generate 10 pins for this product
                 pins_generated = 0
+                sheet_operations_successful = True
+                rate_limit_hit = False
+                
                 for pin_num in range(1, 11):  # Generate 10 pins
                     try:
                         # Generate content for this pin
@@ -333,46 +337,75 @@ def generate_content_and_move_products():
                         if board_title_idx is not None:
                             new_row[board_title_idx] = board_title
                         
-                        # Add row to sheet
-                        try:
-                            sheet1.append_row(new_row)
-                            pins_generated += 1
-                            total_pins_generated += 1
-                            
-                            logger.info(f"✅ Generated Pin {pin_num} for {product_name[:30]}...")
-                        except Exception as sheet_error:
-                            # Check if this is a Google Sheets rate limit error
-                            error_str = str(sheet_error).lower()
-                            if any(keyword in error_str for keyword in ['quota exceeded', 'rate limit', '429', 'resource_exhausted']):
-                                logger.warning(f"⚠️ Google Sheets rate limit detected: {sheet_error}")
-                                logger.info("🔄 Moving to next product due to rate limits")
-                                break  # Break out of pin generation for this product
-                            else:
-                                logger.error(f"❌ Error adding row to sheet: {sheet_error}")
-                                continue
+                        # Add row to sheet with retry logic for rate limiting
+                        max_retries = 3
+                        retry_delay = 60  # seconds
+                        
+                        for retry_attempt in range(max_retries):
+                            try:
+                                sheet1.append_row(new_row)
+                                pins_generated += 1
+                                total_pins_generated += 1
+                                
+                                logger.info(f"✅ Generated Pin {pin_num} for {product_name[:30]}...")
+                                break  # Success, exit retry loop
+                                
+                            except Exception as sheet_error:
+                                error_str = str(sheet_error).lower()
+                                
+                                # Check if this is a Google Sheets rate limit error
+                                if any(keyword in error_str for keyword in ['quota exceeded', 'rate limit', '429', 'resource_exhausted']):
+                                    if retry_attempt < max_retries - 1:
+                                        logger.warning(f"⚠️ Google Sheets rate limit detected (attempt {retry_attempt + 1}/{max_retries}): {sheet_error}")
+                                        logger.info(f"⏳ Waiting {retry_delay} seconds before retry...")
+                                        time.sleep(retry_delay)
+                                        retry_delay *= 2  # Exponential backoff
+                                    else:
+                                        logger.error(f"❌ Google Sheets rate limit exceeded after {max_retries} attempts: {sheet_error}")
+                                        sheet_operations_successful = False
+                                        rate_limit_hit = True
+                                        break  # Break out of pin generation for this product
+                                else:
+                                    logger.error(f"❌ Error adding row to sheet: {sheet_error}")
+                                    sheet_operations_successful = False
+                                    break  # Break out of pin generation for this product
+                        
+                        # If rate limit hit, break out of pin generation loop
+                        if rate_limit_hit:
+                            break
                         
                     except Exception as e:
                         logger.error(f"❌ Error generating pin {pin_num} for {product_name}: {e}")
+                        sheet_operations_successful = False
                         continue
                 
                 logger.info(f"✅ Generated {pins_generated} pins for {product_name}")
                 
-                # Move product from READY FOR PINTEREST to GENERATED collection
-                try:
-                    # Remove from READY FOR PINTEREST
-                    remove_success = remove_product_from_collection(644749033796, product_id)
-                    if remove_success:
-                        # Add to GENERATED collection
-                        add_success = add_product_to_collection(product_id, 651569889604)  # GENERATED collection ID
-                        if add_success:
-                            products_processed += 1
-                            logger.info(f"✅ Moved {product_name} from READY FOR PINTEREST to GENERATED collection")
+                # Only move product if ALL sheet operations were successful
+                if sheet_operations_successful and pins_generated > 0:
+                    try:
+                        # Remove from READY FOR PINTEREST
+                        remove_success = remove_product_from_collection(644749033796, product_id)
+                        if remove_success:
+                            # Add to GENERATED collection
+                            add_success = add_product_to_collection(product_id, 651569889604)  # GENERATED collection ID
+                            if add_success:
+                                products_processed += 1
+                                logger.info(f"✅ Moved {product_name} from READY FOR PINTEREST to GENERATED collection")
+                            else:
+                                logger.warning(f"⚠️ Failed to add {product_name} to GENERATED collection - rolling back removal")
+                                # Rollback: try to add back to READY FOR PINTEREST
+                                add_product_to_collection(product_id, 644749033796)
                         else:
-                            logger.warning(f"⚠️ Failed to add {product_name} to GENERATED collection")
+                            logger.warning(f"⚠️ Failed to remove {product_name} from READY FOR PINTEREST collection")
+                    except Exception as e:
+                        logger.error(f"❌ Error moving product {product_name}: {e}")
+                        continue
+                else:
+                    if rate_limit_hit:
+                        logger.warning(f"⚠️ Skipping product movement for {product_name} due to rate limits - will retry later")
                     else:
-                        logger.warning(f"⚠️ Failed to remove {product_name} from READY FOR PINTEREST collection")
-                except Exception as e:
-                    logger.error(f"❌ Error moving product {product_name}: {e}")
+                        logger.warning(f"⚠️ Skipping product movement for {product_name} due to sheet operation failures")
                     continue
                 
             except Exception as e:
@@ -386,6 +419,8 @@ def generate_content_and_move_products():
         
         # Return status that indicates if rate limits were hit
         if total_pins_generated == 0 and products_processed > 0:
+            return "RATE_LIMITED"  # Indicate rate limits were hit
+        elif rate_limit_hit:
             return "RATE_LIMITED"  # Indicate rate limits were hit
         else:
             return True
