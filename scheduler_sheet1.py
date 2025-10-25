@@ -310,6 +310,8 @@ def generate_content_and_move_products():
                             board_title = f"{product_name} Inspirationen"
                         
                         # Create new row in Google Sheet
+                        logger.info(f"[DEBUG] About to create new_row with headers length: {len(headers)}")
+                        logger.info(f"[DEBUG] Headers content: {headers}")
                         new_row = [''] * len(headers)  # Initialize with empty values
                         logger.info(f"[DEBUG] Created new_row with {len(new_row)} columns")
                         
