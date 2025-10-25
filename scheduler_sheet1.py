@@ -193,6 +193,10 @@ def generate_content_and_move_products():
         data = sheet1.get_all_values()
         headers = data[0] if data else []
         
+        # Debug: Log the headers and their count
+        logger.info(f"[DEBUG] Headers found: {len(headers)} columns")
+        logger.info(f"[DEBUG] Headers: {headers}")
+        
         # Find column indices
         product_name_idx = None
         product_url_idx = None
@@ -307,6 +311,7 @@ def generate_content_and_move_products():
                         
                         # Create new row in Google Sheet
                         new_row = [''] * len(headers)  # Initialize with empty values
+                        logger.info(f"[DEBUG] Created new_row with {len(new_row)} columns")
                         
                         # Get unique product image URL from full product data based on pin number
                         image_url = ""
